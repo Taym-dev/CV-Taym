@@ -171,24 +171,33 @@ function useTabTitle() {
   }, [])
 }
 
+/**
+ * No loading screen: just black until the room is there, then it fades in.
+ * Only on a slow connection a small progress line appears at the bottom.
+ */
 function Loader() {
   const { progress } = useProgress()
   const phase = useStore((s) => s.phase)
   const done = phase !== "loading"
-  const cells = 20
-  const filled = Math.round((progress / 100) * cells)
+  const [slow, setSlow] = useState(false)
+
+  useEffect(() => {
+    const t = setTimeout(() => setSlow(true), 2500)
+    return () => clearTimeout(t)
+  }, [])
+
   return (
     <div
-      className={`pointer-events-none fixed inset-0 z-20 flex flex-col items-center justify-center bg-[#030403] font-[VT323] text-[#7fe39a] transition-opacity duration-700 ${done ? "opacity-0" : "opacity-100"}`}
+      className={`pointer-events-none fixed inset-0 z-20 bg-[#030403] transition-opacity duration-1000 ${done ? "opacity-0" : "opacity-100"}`}
       role="status"
       aria-live="polite"
     >
-      <p className="text-2xl tracking-wide">kamer laden</p>
-      <p className="mt-3 text-3xl tracking-[0.2em] text-[#c8ffd2]" aria-hidden="true">
-        {"█".repeat(filled)}
-        <span className="text-[#163d24]">{"█".repeat(cells - filled)}</span>
-      </p>
-      <p className="mt-2 text-xl text-[#3d9a5a]">{Math.round(progress)}%</p>
+      <span className="sr-only">{done ? "Kamer geladen" : "Kamer laden"}</span>
+      {slow && !done && (
+        <p className="animate-rise-in absolute inset-x-0 bottom-8 text-center font-[VT323] text-lg text-[#3d9a5a]" aria-hidden="true">
+          laden {Math.round(progress)}%
+        </p>
+      )}
     </div>
   )
 }
