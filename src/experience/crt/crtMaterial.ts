@@ -3,7 +3,7 @@ import * as THREE from "three"
 /**
  * Material for the CRT glass. Takes the screen canvas and adds what a real tube does:
  * barrel curvature, scanlines, an aperture grille, phosphor glow, a rolling refresh band,
- * flicker, noise, the power-on line, and a soft reflection on the glass.
+ * flicker, noise, the power-on line, the power-off collapse, and a soft reflection on the glass.
  * uGlitch (0..1+) tears lines sideways and splits the colours.
  */
 
@@ -20,6 +20,7 @@ const fragment = /* glsl */ `
   uniform float uTime;
   uniform float uGlitch;
   uniform float uPower;
+  uniform float uOff;
   uniform float uLines;
   varying vec2 vUv;
 
@@ -47,7 +48,12 @@ const fragment = /* glsl */ `
     // Power on: the picture grows out of a bright horizontal line.
     float sy = mix(0.003, 1.0, smoothstep(0.15, 0.75, p));
     float sx = smoothstep(0.0, 0.2, p);
-    vec2 c = (uv - 0.5) / vec2(max(sx, 0.001), sy) + 0.5;
+    // Power off: squash to a bright line, then to a dot.
+    float oy = smoothstep(0.0, 0.45, uOff);
+    float ox = smoothstep(0.4, 0.75, uOff);
+    sy *= mix(1.0, 0.004, oy);
+    sx *= mix(1.0, 0.006, ox);
+    vec2 c = (uv - 0.5) / vec2(max(sx, 0.0005), max(sy, 0.0005)) + 0.5;
 
     float split = 0.0011 + uGlitch * 0.012;
     vec3 col;
@@ -90,6 +96,12 @@ const fragment = /* glsl */ `
     float line = (1.0 - smoothstep(0.1, 0.7, p)) * step(0.001, p);
     col += vec3(0.7, 1.0, 0.8) * line * exp(-abs(uv.y - 0.5) * 140.0) * 3.0;
 
+    // While collapsing the picture gets brighter, then the tube goes dead and only the dot lingers.
+    col *= (1.0 + oy * 3.0) * (1.0 - smoothstep(0.7, 0.95, uOff));
+    float dotGlow = ox * (1.0 - smoothstep(0.82, 1.0, uOff));
+    col += vec3(0.75, 1.0, 0.82) * exp(-length((uv - 0.5) * vec2(1.33, 1.0)) * 38.0) * dotGlow * 5.0;
+    col += vec3(0.7, 1.0, 0.8) * exp(-abs(uv.y - 0.5) * 160.0) * oy * (1.0 - ox) * 2.0;
+
     col *= step(0.001, p);
 
     // Glass: soft reflection top left and a faint flare from the room light.
@@ -112,6 +124,7 @@ export function createCrtMaterial(map: THREE.Texture) {
       uTime: { value: 0 },
       uGlitch: { value: 0 },
       uPower: { value: 0 },
+      uOff: { value: 0 },
       uLines: { value: 250 },
     },
     toneMapped: false,

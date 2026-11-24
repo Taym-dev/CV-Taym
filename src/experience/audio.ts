@@ -158,6 +158,72 @@ export const sound = {
     tone(ac, ac.currentTime, "square", 988, 988, 0.05, 0.045)
   },
 
+  /** Pull chain of the desk lamp: a dry double click. */
+  cord() {
+    const ac = audio()
+    if (!ac) return
+    const t = ac.currentTime
+    noiseBurst(ac, t, 0.018, 0.35, "bandpass", 2200, 3)
+    noiseBurst(ac, t + 0.05, 0.012, 0.2, "bandpass", 3200, 3)
+    tone(ac, t, "sine", 900, 600, 0.03, 0.05)
+  },
+
+  /** Old bulb warming up: a short electrical buzz. */
+  buzz() {
+    const ac = audio()
+    if (!ac) return
+    const t = ac.currentTime
+    tone(ac, t, "sawtooth", 100, 100, 0.35, 0.02)
+    noiseBurst(ac, t, 0.25, 0.04, "bandpass", 1800, 6)
+  },
+
+  /** CRT switching off: the high whine drops away with a soft thump. */
+  powerOff() {
+    const ac = audio()
+    if (!ac) return
+    const t = ac.currentTime
+    noiseBurst(ac, t, 0.03, 0.4, "highpass", 2500)
+    tone(ac, t, "sine", 1800, 60, 0.7, 0.08)
+    tone(ac, t + 0.02, "sine", 120, 30, 0.5, 0.6)
+    noiseBurst(ac, t + 0.05, 0.6, 0.08, "highpass", 5000)
+    hum?.stop()
+  },
+
+  /** The spark flying through the room. */
+  whoosh(duration = 1) {
+    const ac = audio()
+    if (!ac) return
+    const t = ac.currentTime
+    const src = ac.createBufferSource()
+    src.buffer = noiseBuffer(ac)
+    src.loop = true
+    const f = ac.createBiquadFilter()
+    f.type = "bandpass"
+    f.Q.value = 2.5
+    f.frequency.setValueAtTime(400, t)
+    f.frequency.exponentialRampToValueAtTime(2600, t + duration * 0.6)
+    f.frequency.exponentialRampToValueAtTime(700, t + duration)
+    const g = ac.createGain()
+    g.gain.setValueAtTime(0.0001, t)
+    g.gain.exponentialRampToValueAtTime(0.12, t + duration * 0.5)
+    g.gain.exponentialRampToValueAtTime(0.0001, t + duration)
+    src.connect(f).connect(g).connect(master!)
+    src.start(t)
+    src.stop(t + duration + 0.05)
+    tone(ac, t, "sine", 660, 1320, duration, 0.025)
+  },
+
+  /** The spark bursts into dust: bright chime with a crackle. */
+  burst() {
+    const ac = audio()
+    if (!ac) return
+    const t = ac.currentTime
+    noiseBurst(ac, t, 0.5, 0.25, "highpass", 3000)
+    tone(ac, t, "sine", 80, 30, 0.6, 0.5)
+    ;[523, 659, 784, 1047].forEach((f, i) => tone(ac, t + 0.03 + i * 0.07, "triangle", f, f, 0.9, 0.05))
+    for (let i = 0; i < 10; i++) noiseBurst(ac, t + 0.1 + Math.random() * 0.8, 0.01, 0.08, "highpass", 6000)
+  },
+
   /** Typing tick for the typewriter text. */
   tick() {
     const ac = audio()

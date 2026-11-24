@@ -1,17 +1,17 @@
 import { Environment, useProgress } from "@react-three/drei"
 import { Canvas } from "@react-three/fiber"
-import { Suspense, useCallback, useEffect, useState } from "react"
+import { Suspense, useCallback, useEffect, useMemo, useState } from "react"
 import type * as THREE from "three"
-
-import gsap from "gsap"
 
 import { CameraRig } from "./CameraRig"
 import { Computer } from "./Computer"
 import { Effects } from "./Effects"
 import { Hud } from "./Hud"
 import { Lights } from "./Lights"
+import { Outro } from "./Outro"
+import { Overlays } from "./Overlays"
 import { Room } from "./Room"
-import { fx, glitch, goToSlide, leaveTour, reducedMotion, setPhase, startTour, store, useStore } from "./store"
+import { glitch, goToSlide, isTouch, leaveTour, reducedMotion, restart, startTour, startUp, store, useStore } from "./store"
 import { TextVersion } from "./TextVersion"
 
 const HDRI = `${import.meta.env.BASE_URL}hdri/studio.hdr`
@@ -20,16 +20,19 @@ export function Experience() {
   const [screenBox, setScreenBox] = useState<THREE.Box3 | null>(null)
   const onScreen = useCallback((box: THREE.Box3) => setScreenBox(box), [])
 
+  const touch = useMemo(() => isTouch(), [])
+
   useBoot()
   useControls()
   useAmbientGlitches()
+  useTabTitle()
 
   return (
     <div className="fixed inset-0 bg-[#030403]">
       <Canvas
         flat
         shadows
-        dpr={[1, 1.75]}
+        dpr={touch ? [1, 1.5] : [1, 1.75]}
         camera={{ fov: 35, near: 0.01, far: 30, position: [1.55, 0.95, 2.7] }}
         gl={{ powerPreference: "high-performance", antialias: false }}
         aria-hidden="true"
@@ -41,18 +44,20 @@ export function Experience() {
           <Computer onScreen={onScreen} />
           <Lights screenBox={screenBox} />
           <Environment files={HDRI} environmentIntensity={0.14} />
-          <Effects />
+          <Outro />
+          <Effects multisampling={touch ? 0 : 4} />
         </Suspense>
         <CameraRig screenBox={screenBox} />
       </Canvas>
       <Loader />
       <Hud />
+      <Overlays />
       <TextVersion />
     </div>
   )
 }
 
-/** When everything has loaded: zoom in to the desk and switch the monitor on. */
+/** When everything has loaded: pull the lamp cord, zoom in to the desk and switch the monitor on. */
 function useBoot() {
   const { active, progress } = useProgress()
   const phase = useStore((s) => s.phase)
@@ -61,11 +66,10 @@ function useBoot() {
     if (phase !== "loading" || active || progress < 100) return
     let cancelled = false
     const fonts = document.fonts?.load('64px "VT323"').catch(() => undefined) ?? Promise.resolve()
-    void Promise.all([fonts, new Promise((r) => setTimeout(r, 350))]).then(() => {
+    // A short moment in the dark room first, after the loader has faded.
+    void Promise.all([fonts, new Promise((r) => setTimeout(r, 900))]).then(() => {
       if (cancelled) return
-      setPhase("boot")
-      glitch(0.6, 0.35, 0)
-      gsap.fromTo(fx, { power: 0 }, { power: 1, duration: reducedMotion() ? 0.01 : 1.1, delay: reducedMotion() ? 0 : 1.6, ease: "power2.out" })
+      startUp()
     })
     return () => {
       cancelled = true
@@ -86,13 +90,14 @@ function useControls() {
       if (phase === "ready" && (e.key === "Enter" || e.key === " ")) {
         e.preventDefault()
         startTour()
+      } else if (phase === "off" && store.get().outro && e.key === "Enter") {
+        restart()
       } else if (phase === "tour") {
-        if (["ArrowRight", "ArrowDown", "PageDown"].includes(e.key)) goToSlide(slide + 1)
+        if (["ArrowRight", "ArrowDown", "PageDown", " "].includes(e.key)) goToSlide(slide + 1)
         else if (["ArrowLeft", "ArrowUp", "PageUp"].includes(e.key)) goToSlide(slide - 1)
-        else if (e.key === " ") {
-          e.preventDefault()
-          store.set({ paused: !store.get().paused })
-        } else if (e.key === "Escape") leaveTour()
+        else if (e.key === "Home") goToSlide(0)
+        else if (e.key === "End") goToSlide(Infinity)
+        else if (e.key === "Escape") leaveTour()
         else return
         e.preventDefault()
       }
@@ -117,7 +122,8 @@ function useControls() {
       if (textVersion || phase !== "tour") return
       const dx = e.changedTouches[0].clientX - touchX
       const dy = e.changedTouches[0].clientY - touchY
-      if (Math.abs(dx) > 50 && Math.abs(dx) > Math.abs(dy)) goToSlide(slide + (dx < 0 ? 1 : -1))
+      if (Math.abs(dx) > 40 && Math.abs(dx) > Math.abs(dy)) goToSlide(slide + (dx < 0 ? 1 : -1))
+      else if (Math.abs(dy) > 60 && Math.abs(dy) > Math.abs(dx) * 1.5) goToSlide(slide + (dy < 0 ? 1 : -1))
     }
 
     addEventListener("keydown", onKey)
@@ -147,6 +153,21 @@ function useAmbientGlitches() {
     }
     schedule()
     return () => clearTimeout(timer)
+  }, [])
+}
+
+/** The browser tab calls you back when you switch away. */
+function useTabTitle() {
+  useEffect(() => {
+    const original = document.title
+    const onChange = () => {
+      document.title = document.hidden ? "▌ het scherm wacht op je…" : original
+    }
+    document.addEventListener("visibilitychange", onChange)
+    return () => {
+      document.removeEventListener("visibilitychange", onChange)
+      document.title = original
+    }
   }, [])
 }
 

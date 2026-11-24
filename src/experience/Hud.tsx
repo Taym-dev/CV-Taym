@@ -1,25 +1,28 @@
 import { Volume2, VolumeX } from "lucide-react"
 
-import { leaveTour, startTour, store, toggleMuted, useStore } from "./store"
+import { leaveTour, quit, replay, SLIDE_COUNT, startTour, store, toggleMuted, useStore } from "./store"
 
 const chip =
-  "pointer-events-auto inline-flex items-center gap-2 rounded-sm px-3 py-2 font-[VT323] text-lg leading-none text-[#7fe39a]/70 transition-colors hover:text-[#c8ffd2] focus-visible:text-[#c8ffd2] focus-visible:outline focus-visible:outline-1 focus-visible:outline-[#7fe39a]"
+  "pointer-events-auto whitespace-nowrap inline-flex items-center gap-2 rounded-sm px-3 py-2 font-[VT323] text-lg leading-none text-[#7fe39a]/70 transition-colors hover:text-[#c8ffd2] focus-visible:text-[#c8ffd2] focus-visible:outline focus-visible:outline-1 focus-visible:outline-[#7fe39a]"
 
 /** Small controls in the corners, outside the 3D scene. */
 export function Hud() {
   const phase = useStore((s) => s.phase)
   const muted = useStore((s) => s.muted)
+  const slide = useStore((s) => s.slide)
   if (phase === "loading") return null
+  const hidden =
+    "sr-only pointer-events-auto focus:not-sr-only focus:fixed focus:top-4 focus:rounded-sm focus:bg-[#c8ffd2] focus:px-4 focus:py-2 focus:font-[VT323] focus:text-xl focus:text-[#020604]"
 
   return (
-    <div className="pointer-events-none fixed inset-x-0 bottom-0 z-10 flex items-end justify-between p-3 sm:p-5">
+    <div className="pointer-events-none fixed inset-x-0 bottom-0 z-10 flex items-end justify-between pb-safe px-3 pt-3 sm:p-5">
       <div className="flex gap-1">
         <button type="button" className={chip} onClick={() => store.set({ textVersion: true })}>
           tekstversie
         </button>
         {phase === "tour" && (
           <button type="button" className={chip} onClick={leaveTour}>
-            terug naar bureau
+            terug<span className="hidden sm:inline">&nbsp;naar bureau</span>
           </button>
         )}
       </div>
@@ -33,6 +36,17 @@ export function Hud() {
         >
           start rondleiding
         </button>
+      )}
+      {/* Same as the two buttons on the last slide. */}
+      {phase === "tour" && slide === SLIDE_COUNT - 1 && (
+        <>
+          <button type="button" onClick={replay} className={`${hidden} focus:left-4`}>
+            kijk opnieuw
+          </button>
+          <button type="button" onClick={quit} className={`${hidden} focus:right-4`}>
+            afsluiten
+          </button>
+        </>
       )}
 
       <button type="button" className={chip} onClick={toggleMuted} aria-pressed={!muted} aria-label={muted ? "Geluid aanzetten" : "Geluid uitzetten"}>
