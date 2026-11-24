@@ -1,0 +1,4 @@
+Textures and HDRI in this folder are CC0 (public domain).
+
+ambientCG (ambientcg.com): Plastic010, Fingerprints002, SurfaceImperfections003
+Poly Haven (polyhaven.com): american_walnut_veneer, plaster_grey_04, herringbone_parquet, studio_small_08 HDRI

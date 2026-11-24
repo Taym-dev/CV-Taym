@@ -22,15 +22,16 @@ export const profile = {
 export const hero = {
   headline: ["Ik bouw websites", "en apps."],
   subs: ["Van knop tot database.", "Van schets tot live.", "Van bug tot fix."],
+  // Korte beschrijving op het beginscherm van de rondleiding.
   intro:
-    "Ik ben Taym, mbo-4 student Software Developer uit Dordrecht. Op dit moment bouw ik bij het Practoraat van Avans Hogeschool zowel de voorkant als de achterkant van een slimme-meterapp.",
+    "Ik ben Taym, software developer in opleiding uit Dordrecht. Ik bouw het liefst dingen die mensen echt gebruiken: websites, dashboards en mijn eigen Roblox-game. Ik leer door te maken, te testen en het daarna beter te doen. Naast school werk ik al sinds 2022, dus doorpakken ben ik gewend.",
 }
 
 export const tldr: { label: string; title: string; text: string; accent: Accent }[] = [
   {
     label: "Nu",
-    title: "Stagiair bij Practoraat Avans",
-    text: "Voor- en achterkant van een slimme-meterapp. 2025 – 2026.",
+    title: "Student mbo 4 Software Developer",
+    text: "Da Vinci College in Dordrecht, sinds 2023. Naast school bouw ik aan mijn eigen Roblox-game.",
     accent: "main",
   },
   {
@@ -52,7 +53,8 @@ export const tldr: { label: string; title: string; text: string; accent: Accent 
 export const stack = {
   "Front-end": ["HTML", "CSS", "JavaScript", "TypeScript", "React", "Tailwind"],
   "Back-end": ["PHP", "SQL", "REST API's"],
-  Tools: ["Git", "GitHub", "VS Code", "Figma"],
+  Game: ["Roblox Studio", "Luau"],
+  Tools: ["Git", "GitHub", "VS Code", "Figma", "Blender"],
 }
 
 export type Project = {
@@ -68,13 +70,22 @@ export type Project = {
 
 export const projects: Project[] = [
   {
-    title: "Slimme-meterapp",
-    where: "Practoraat Avans Hogeschool",
-    when: "2025 – 2026",
-    text: "Een app rond de slimme meter. Ik werk aan het hele verhaal: de schermen die de gebruiker ziet én de logica en data erachter.",
-    role: "Front-end + back-end",
-    tags: ["Front-end", "Back-end"], // CHECK: welke talen/frameworks?
+    title: "Slimme-meter dashboard",
+    where: "Schoolopdracht",
+    when: "2025", // CHECK: jaar
+    text: "Een dashboard voor de slimme meter in de meterkast. Het zet de gegevens uit de meter om in een overzicht dat je in één oogopslag snapt.",
+    role: "Ontwerp en bouw",
+    tags: ["Dashboard"], // CHECK: welke talen/frameworks?
     accent: "main",
+  },
+  {
+    title: "CarCompany Simulator",
+    where: "Eigen project, Roblox",
+    when: "2026",
+    text: "Mijn eigen Roblox-game. Ik programmeer de auto's, de besturing, de menu's en de systemen erachter in Luau.",
+    role: "Game developer",
+    tags: ["Roblox Studio", "Luau"],
+    accent: "yellow",
   },
   {
     title: "Websites voor klanten",
@@ -89,9 +100,9 @@ export const projects: Project[] = [
     title: "Deze site",
     where: "Eigen project",
     when: "2026",
-    text: "Mijn cv als website. Ontworpen en gebouwd met React, TypeScript en Tailwind, op neo-brutalist shadcn/ui-componenten.",
-    role: "Ontwerp + bouw",
-    tags: ["React", "TypeScript", "Tailwind", "shadcn/ui"],
+    text: "Mijn cv als 3D-kamer. De computer bouwde ik in Blender met Python, de site draait op React Three Fiber met een eigen CRT-shader.",
+    role: "Ontwerp en bouw",
+    tags: ["React", "Three.js", "Blender", "GLSL"],
     link: { label: "Bekijk de code", href: "https://github.com/Taym-dev/CV-Taym" },
     accent: "red",
   },
@@ -107,12 +118,6 @@ export type Job = {
 
 export const experience: { development: Job[]; other: Job[] } = {
   development: [
-    {
-      role: "Stagiair",
-      company: "Practoraat Avans Hogeschool", // CHECK: officiële naam
-      when: "2025 – 2026",
-      text: "Verantwoordelijk voor zowel de voorkant als de achterkant van een slimme-meterapp.",
-    },
     {
       role: "Stagiair",
       company: "Webroses",

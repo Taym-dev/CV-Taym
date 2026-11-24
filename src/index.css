@@ -84,13 +84,9 @@
     scroll-padding-top: 5rem;
   }
   body {
-    background-color: var(--background);
-    /* ruitjespapier */
-    background-image:
-      linear-gradient(to right, oklch(0% 0 0 / 0.06) 1px, transparent 1px),
-      linear-gradient(to bottom, oklch(0% 0 0 / 0.06) 1px, transparent 1px);
-    background-size: 32px 32px;
-    font-family: var(--font-sans);
+    background-color: #030403;
+    color: #d7e6da;
+    font-family: ui-sans-serif, system-ui, sans-serif;
     -webkit-font-smoothing: antialiased;
   }
   ::selection {
