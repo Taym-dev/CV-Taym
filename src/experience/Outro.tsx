@@ -9,62 +9,65 @@ import { rig } from "./rig"
 import { pullCord, reducedMotion, store, useStore } from "./store"
 
 /**
- * After AFSLUITEN the last dot of light on the tube does not just fade:
- * it escapes from the glass as a spark, flies across the dark room, tugs the lamp cord
- * (the lamp dies), loops through the dark room and then flies straight into the camera.
- * There it flashes and becomes the blinking cursor that types the goodbye (Overlays.tsx).
+ * After AFSLUITEN the last dot of light on the tube turns into a glowing mouse pointer.
+ * It climbs out of the glass (with old school pointer trails), clicks the lamp cord and
+ * drags it down (the lamp dies), wanders through the dark room, double clicks
+ * and then flies straight into the camera. There it flashes and becomes the blinking
+ * cursor that types the goodbye (Overlays.tsx).
  */
 
-const TRAIL = 28
+const GHOSTS = 6
 const GREEN = new THREE.Color("#9dffb6")
+
+/** Classic arrow pointer, tip at the origin, in pixels of a 12 x 19 cursor. */
+const ARROW = [
+  [0, 0],
+  [0, 16],
+  [4, 12.5],
+  [7, 18.5],
+  [9.5, 17.5],
+  [6.5, 11.5],
+  [11.5, 11.5],
+]
+const PIXEL = 0.0026
+
+function arrowGeometry(grow = 0) {
+  const shape = new THREE.Shape()
+  // Grow a little around the centre for the dark outline behind the bright fill.
+  const cx = 4.5
+  const cy = 11
+  ARROW.forEach(([x, y], i) => {
+    const gx = (x + (x - cx) * grow) * PIXEL
+    const gy = -(y + (y - cy) * grow) * PIXEL
+    if (i === 0) shape.moveTo(gx, gy)
+    else shape.lineTo(gx, gy)
+  })
+  shape.closePath()
+  return new THREE.ShapeGeometry(shape)
+}
 
 export function Outro() {
   const phase = useStore((s) => s.phase)
-  const spark = useRef<THREE.Group>(null)
-  const core = useRef<THREE.Mesh>(null)
+  const pointer = useRef<THREE.Group>(null)
+  const fill = useRef<THREE.MeshBasicMaterial>(null)
   const light = useRef<THREE.PointLight>(null)
-  const state = useMemo(() => ({ pos: new THREE.Vector3(), size: 0, glow: 0, follow: 0, toCam: 0, from: new THREE.Vector3() }), [])
+  const ghosts = useRef<(THREE.Mesh | null)[]>([])
+  const state = useMemo(() => ({ pos: new THREE.Vector3(), size: 0, glow: 0, follow: 0, toCam: 0, press: 0, from: new THREE.Vector3() }), [])
   const camera = useThree((s) => s.camera)
 
-  // Tail of the spark: its last positions as fading glow points.
-  const tail = useMemo(() => {
-    const geo = new THREE.BufferGeometry()
-    geo.setAttribute("position", new THREE.BufferAttribute(new Float32Array(TRAIL * 3), 3))
-    geo.setAttribute("aAge", new THREE.BufferAttribute(Float32Array.from({ length: TRAIL }, (_, i) => i / (TRAIL - 1)), 1))
-    const mat = new THREE.ShaderMaterial({
-      transparent: true,
-      depthWrite: false,
-      blending: THREE.AdditiveBlending,
-      toneMapped: false,
-      uniforms: { uSize: { value: 0 }, uColor: { value: GREEN.clone().multiplyScalar(2.5) } },
-      vertexShader: /* glsl */ `
-        attribute float aAge;
-        uniform float uSize;
-        varying float vA;
-        void main() {
-          vec4 mv = modelViewMatrix * vec4(position, 1.0);
-          gl_Position = projectionMatrix * mv;
-          vA = (1.0 - aAge) * (1.0 - aAge);
-          gl_PointSize = uSize * (0.35 + 0.65 * (1.0 - aAge)) * (2.0 / -mv.z) * 22.0;
-        }
-      `,
-      fragmentShader: /* glsl */ `
-        uniform vec3 uColor;
-        varying float vA;
-        void main() {
-          float d = length(gl_PointCoord - 0.5);
-          float a = smoothstep(0.5, 0.0, d) * vA;
-          gl_FragColor = vec4(uColor * a * 0.6, a);
-        }
-      `,
-    })
-    return { geo, mat }
-  }, [])
+  const geo = useMemo(() => ({ fill: arrowGeometry(0), edge: arrowGeometry(0.22) }), [])
+  // Pointer trails, like the Windows setting: a few fading copies of where it just was.
+  const history = useMemo(() => Array.from({ length: GHOSTS * 3 }, () => new THREE.Vector3()), [])
+  const ghostMats = useMemo(
+    () => Array.from({ length: GHOSTS }, (_, i) => new THREE.MeshBasicMaterial({ color: GREEN, transparent: true, opacity: 0.4 * (1 - i / GHOSTS), toneMapped: false, depthWrite: false, blending: THREE.AdditiveBlending })),
+    [],
+  )
 
   useEffect(() => () => {
-    tail.geo.dispose()
-    tail.mat.dispose()
-  }, [tail])
+    geo.fill.dispose()
+    geo.edge.dispose()
+    ghostMats.forEach((m) => m.dispose())
+  }, [geo, ghostMats])
 
   // The choreography. Runs once each time the phase becomes "off".
   useEffect(() => {
@@ -77,8 +80,7 @@ export function Outro() {
     const quick = reducedMotion()
     const s = rig.screen.clone()
     state.pos.copy(s)
-    const tp = tail.geo.attributes.position.array as Float32Array
-    for (let i = 0; i < TRAIL; i++) tp.set([s.x, s.y, s.z], i * 3)
+    history.forEach((h) => h.copy(s))
     state.follow = 0
     const near = (p: THREE.Vector3, x: number, y: number, z: number) => p.clone().add(new THREE.Vector3(x, y, z))
     const toLamp = new THREE.CatmullRomCurve3([s, near(s, 0.02, 0.02, 0.22), near(s, -0.25, 0.25, 0.35), near(rig.bead, 0.05, 0.06, 0.12), near(rig.bead, 0, -0.012, 0.012)])
@@ -93,11 +95,13 @@ export function Outro() {
       }
     }
 
-    // 1. The dot leaves the glass.
-    tl.to(state, { size: 1, glow: 1, duration: 0.25, ease: "back.out(3)" })
+    // 1. The dot on the glass becomes a mouse pointer and climbs out.
+    tl.to(state, { size: 1, glow: 1, duration: 0.3, ease: "back.out(3)" })
     tl.call(() => sound.whoosh(1.5), [], 0.05)
     tl.to(fly, { t: 1, duration: 1.5, ease: "power1.inOut", onUpdate: () => toLamp.getPoint(fly.t, state.pos) }, 0.1)
-    // 2. It grabs the cord and pulls: the lamp dies.
+    // 2. Click on the cord and drag it down: the lamp dies.
+    tl.call(() => sound.mouseClick())
+    tl.to(state, { press: 1, duration: 0.06, yoyo: true, repeat: 1 })
     tl.to(state, { follow: 1, duration: 0.01 })
     tl.call(() => {
       pullCord(false)
@@ -113,15 +117,20 @@ export function Outro() {
       sound.whoosh(1.8)
     })
     tl.to(loop, { t: 1, duration: 1.8, ease: "sine.inOut", onUpdate: () => path?.getPoint(loop.t, state.pos) })
-    // 4. A beat of stillness, it looks at you... then comes straight at the camera.
-    tl.to(state, { glow: 1.6, size: 1.3, duration: 0.45, ease: "sine.inOut", yoyo: true, repeat: 1 })
+    // 4. It stops, double clicks at you... then comes straight at the camera.
+    tl.to({}, { duration: 0.3 })
+    tl.call(() => sound.mouseClick())
+    tl.to(state, { press: 1, duration: 0.05, yoyo: true, repeat: 1 })
+    tl.call(() => sound.mouseClick(), [], "+=0.06")
+    tl.to(state, { press: 1, duration: 0.05, yoyo: true, repeat: 1 })
+    tl.to({}, { duration: 0.25 })
     tl.call(() => {
       state.from.copy(state.pos)
       sound.rush()
     })
     tl.to(state, { toCam: 1, duration: 0.75, ease: "power3.in" })
     tl.to(state, { size: 3, glow: 3, duration: 0.75, ease: "power3.in" }, "<")
-    // 5. Impact: flash, and the spark becomes the cursor of the goodbye screen.
+    // 5. Impact: flash, and the pointer becomes the cursor of the goodbye screen.
     tl.call(() => {
       sound.impact()
       store.set({ outro: true })
@@ -131,31 +140,41 @@ export function Outro() {
     return () => {
       tl.kill()
     }
-  }, [phase, state, tail])
+  }, [phase, state, history])
 
   const camPoint = useMemo(() => new THREE.Vector3(), [])
-  useFrame((frame) => {
-    const t = frame.clock.elapsedTime
-    if (state.follow > 0) state.pos.copy(rig.bead).add(new THREE.Vector3(0, -0.012, 0.012))
+  const frameNo = useRef(0)
+  useFrame(() => {
+    if (state.follow > 0) state.pos.copy(rig.bead).add(new THREE.Vector3(0.004, 0.002, 0.01))
     if (state.toCam > 0) {
       // Just in front of the lens, so it fills the view right before the flash.
       camera.getWorldDirection(camPoint).multiplyScalar(0.12).add(camera.position)
       state.pos.lerpVectors(state.from, camPoint, state.toCam)
     }
-    if (spark.current) {
-      // A little jitter: it is alive.
-      spark.current.position.set(state.pos.x + Math.sin(t * 23) * 0.003, state.pos.y + Math.cos(t * 19) * 0.003, state.pos.z)
-      spark.current.visible = state.size > 0.001
-      const pulse = 1 + Math.sin(t * 18) * 0.12
-      spark.current.scale.setScalar(Math.max(0.0001, state.size * pulse))
+    const visible = state.size > 0.001
+    if (pointer.current) {
+      pointer.current.position.copy(state.pos)
+      // Always faces the camera, like a real cursor on glass.
+      pointer.current.quaternion.copy(camera.quaternion)
+      pointer.current.visible = visible
+      // A click squashes it a little.
+      pointer.current.scale.set(state.size * (1 - state.press * 0.18), state.size * (1 - state.press * 0.18), 1)
     }
-    // Shift the tail: newest position first.
-    const tp = tail.geo.attributes.position.array as Float32Array
-    tp.copyWithin(3, 0, (TRAIL - 1) * 3)
-    tp.set([state.pos.x, state.pos.y, state.pos.z], 0)
-    tail.geo.attributes.position.needsUpdate = true
-    tail.mat.uniforms.uSize.value = Math.min(1, state.size)
-    if (core.current) (core.current.material as THREE.MeshBasicMaterial).color.copy(GREEN).multiplyScalar(2 + state.glow * 3)
+    if (fill.current) fill.current.color.copy(GREEN).multiplyScalar(1.6 + state.glow * 2 + state.press * 2)
+
+    // Trails: every other frame remember the position, ghosts sit further back in time.
+    if (frameNo.current++ % 2 === 0) {
+      for (let i = history.length - 1; i > 0; i--) history[i].copy(history[i - 1])
+      history[0].copy(state.pos)
+    }
+    ghosts.current.forEach((g, i) => {
+      if (!g) return
+      g.visible = visible && state.toCam === 0
+      g.position.copy(history[(i + 1) * 3 - 1])
+      g.quaternion.copy(camera.quaternion)
+      g.scale.set(state.size, state.size, 1)
+    })
+
     if (light.current) {
       light.current.position.copy(state.pos)
       light.current.intensity = state.glow * 0.9
@@ -164,17 +183,25 @@ export function Outro() {
 
   return (
     <>
-      <points geometry={tail.geo} material={tail.mat} frustumCulled={false} />
-      <group ref={spark} visible={false}>
-        <mesh ref={core}>
-          <sphereGeometry args={[0.011, 16, 12]} />
-          <meshBasicMaterial color={GREEN} toneMapped={false} />
+      <group ref={pointer} visible={false}>
+        <mesh geometry={geo.edge} position-z={-0.0005}>
+          <meshBasicMaterial color="#020604" toneMapped={false} />
         </mesh>
-        <mesh>
-          <sphereGeometry args={[0.026, 16, 12]} />
-          <meshBasicMaterial color={GREEN} transparent opacity={0.18} toneMapped={false} depthWrite={false} blending={THREE.AdditiveBlending} />
+        <mesh geometry={geo.fill}>
+          <meshBasicMaterial ref={fill} color={GREEN} toneMapped={false} />
         </mesh>
       </group>
+      {ghostMats.map((m, i) => (
+        <mesh
+          key={i}
+          ref={(el) => {
+            ghosts.current[i] = el
+          }}
+          geometry={geo.fill}
+          material={m}
+          visible={false}
+        />
+      ))}
       <pointLight ref={light} color="#8dffaa" intensity={0} distance={2.2} decay={2} />
     </>
   )

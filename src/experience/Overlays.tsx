@@ -130,7 +130,7 @@ function RotateHint() {
 const LINES = ["bedankt", "voor het kijken."]
 
 /**
- * The spark flew into the lens: a green flash, then it is the cursor of a terminal
+ * The mouse pointer flew into the lens: a green flash, then it is the cursor of a terminal
  * that types the goodbye. The buttons boot in line by line underneath.
  */
 function Goodbye() {
@@ -190,10 +190,7 @@ function GoodbyeScreen() {
 
         {done && (
           <>
-            <p className="animate-rise-in mt-6 text-xl text-[#7fe39a] sm:text-2xl">
-              {profile.name} · {profile.role.toLowerCase()} · {profile.city}
-            </p>
-            <div className="mt-8 flex flex-wrap items-center gap-x-2 gap-y-3">
+            <div className="mt-10 flex flex-wrap items-center gap-x-2 gap-y-3">
               <button
                 type="button"
                 onClick={restart}

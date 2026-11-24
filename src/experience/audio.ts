@@ -200,6 +200,16 @@ export const sound = {
     for (let i = 0; i < 9; i++) noiseBurst(ac, t + 0.5 + Math.random() * 0.9, 0.006 + Math.random() * 0.01, 0.05 + Math.random() * 0.06, "highpass", 4500)
   },
 
+  /** A mouse button: short plastic click. */
+  mouseClick() {
+    const ac = audio()
+    if (!ac) return
+    const t = ac.currentTime
+    noiseBurst(ac, t, 0.012, 0.35, "bandpass", 3500, 2)
+    tone(ac, t, "square", 2400, 1800, 0.012, 0.04)
+    noiseBurst(ac, t + 0.06, 0.008, 0.18, "bandpass", 2800, 2)
+  },
+
   /** The spark races at the camera: rising tone and wind. */
   rush() {
     const ac = audio()
