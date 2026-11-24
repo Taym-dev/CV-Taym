@@ -21,10 +21,11 @@ const DESK_DIR = new THREE.Vector3(0.16, 0.3, 1).normalize()
 const OUT_LOOK = new THREE.Vector3(-0.12, 0.36, 0.3)
 const OUT_DIR = new THREE.Vector3(0.32, 0.22, 1).normalize()
 
-const TRANSITIONS: Partial<Record<Phase, { duration: number; ease: string }>> = {
+const TRANSITIONS: Partial<Record<Phase, { duration: number; ease: string; delay?: number }>> = {
   lamp: { duration: 2.1, ease: "expo.inOut" },
   boot: { duration: 2.1, ease: "expo.inOut" },
-  off: { duration: 4.5, ease: "power2.inOut" },
+  // Waits for the pointer to click the screen off, then pulls back.
+  off: { duration: 3.2, ease: "power2.inOut", delay: 1.1 },
   tour: { duration: 1.7, ease: "power3.inOut" },
   ready: { duration: 1.3, ease: "power2.inOut" },
 }
@@ -57,7 +58,7 @@ export function CameraRig({ screenBox }: { screenBox: THREE.Box3 | null }) {
       blend.current.p = 1
       return
     }
-    const tween = gsap.to(blend.current, { p: 1, duration: t.duration, ease: t.ease })
+    const tween = gsap.to(blend.current, { p: 1, duration: t.duration, ease: t.ease, delay: t.delay ?? 0 })
     return () => {
       tween.kill()
     }

@@ -6,11 +6,11 @@ import gsap from "gsap"
 
 import { sound } from "./audio"
 import { rig } from "./rig"
-import { pullCord, reducedMotion, store, useStore } from "./store"
+import { pullCord, reducedMotion, screenOff, store, useStore } from "./store"
 
 /**
- * After AFSLUITEN the last dot of light on the tube turns into a glowing mouse pointer.
- * It glides out of the glass in one smooth, unhurried path: past the lamp cord (which it
+ * After AFSLUITEN a glowing mouse pointer appears.
+ * It slides over the glass and clicks the screen off, then glides in one smooth path past the lamp cord (which it
  * tugs on the way, the lamp dies) and then to the middle of the view, where it fades
  * into the blinking text cursor that types the goodbye (Overlays.tsx).
  */
@@ -49,10 +49,11 @@ export function Outro() {
   const pointer = useRef<THREE.Group>(null)
   const fill = useRef<THREE.MeshBasicMaterial>(null)
   const light = useRef<THREE.PointLight>(null)
-  const state = useMemo(() => ({ pos: new THREE.Vector3(), size: 0, glow: 0, t: 0, tilt: 0 }), [])
+  const state = useMemo(() => ({ pos: new THREE.Vector3(), size: 0, glow: 0, t: 0, a: 0, stage: 0, press: 0, tilt: 0 }), [])
   const camera = useThree((s) => s.camera)
   const geo = useMemo(() => ({ fill: arrowGeometry(0), edge: arrowGeometry(0.22) }), [])
   const path = useRef<THREE.CatmullRomCurve3 | null>(null)
+  const approach = useRef<THREE.CatmullRomCurve3 | null>(null)
 
   useEffect(() => () => {
     geo.fill.dispose()
@@ -66,10 +67,13 @@ export function Outro() {
       state.glow = 0
       state.t = 0
       path.current = null
+      approach.current = null
+      state.stage = 0
+      state.press = 0
       return
     }
     const quick = reducedMotion()
-    const tl = gsap.timeline({ delay: quick ? 0 : 0.75 })
+    const tl = gsap.timeline({ delay: quick ? 0.75 : 0.15 })
     if (quick) {
       tl.call(() => pullCord(false))
       tl.call(() => store.set({ outro: true }), [], 0.3)
@@ -81,28 +85,45 @@ export function Outro() {
     const s = rig.screen.clone()
     const b = rig.bead.clone()
     const at = (p: THREE.Vector3, x: number, y: number, z: number) => p.clone().add(new THREE.Vector3(x, y, z))
-    // One continuous curve: out of the glass, up and over to the cord, brushing past the bead,
-    // then a wide easy arc out into the room. The last stretch blends towards the camera.
+    // First the pointer slides in over the glass to the lower right corner and clicks.
+    const click = at(s, 0.08, -0.065, 0.012)
+    approach.current = new THREE.CatmullRomCurve3([at(s, 0.2, -0.2, 0.08), at(s, 0.13, -0.1, 0.04), click], false, "centripetal")
+    // Then one continuous curve: off the glass, over to the cord, brushing past the bead,
+    // then an easy arc out into the room. The last stretch blends towards the camera.
     path.current = new THREE.CatmullRomCurve3(
-      [s, at(s, 0, 0.02, 0.18), at(s, -0.2, 0.2, 0.3), at(b, 0.06, 0.05, 0.08), at(b, 0.0, -0.01, 0.015), at(b, 0.1, -0.08, 0.18), new THREE.Vector3(0.15, 0.32, 0.75)],
+      [click, at(click, -0.02, 0.04, 0.16), at(s, -0.2, 0.2, 0.3), at(b, 0.06, 0.05, 0.08), at(b, 0.0, -0.01, 0.015), at(b, 0.1, -0.08, 0.18), new THREE.Vector3(0.15, 0.32, 0.75)],
       false,
       "centripetal",
     )
-    state.pos.copy(s)
+    state.stage = 0
+    state.a = 0
     state.t = 0
-    const CORD_AT = 0.53
+    approach.current.getPointAt(0, state.pos)
+    const CORD_AT = 0.5
+    const FLY = 2.8
 
-    tl.to(state, { size: 1, glow: 1, duration: 0.6, ease: "power2.out" })
-    tl.call(() => sound.whoosh(2.4), [], 0.1)
-    tl.to(state, { t: 1, duration: 4.6, ease: "sine.inOut" }, 0.2)
-    // The cord gets pulled exactly when the pointer passes the bead.
-    tl.call(() => pullCord(false), [], 0.2 + 4.6 * easeInverse(CORD_AT))
-    // Arrived in the middle of the view: it dissolves into the typing cursor.
+    tl.to(state, { size: 0.6, glow: 0.6, duration: 0.25, ease: "power2.out" })
+    tl.to(state, { a: 1, duration: 0.6, ease: "power2.out" }, 0)
+    // Click: the screen goes off.
+    tl.call(() => sound.mouseClick())
+    tl.to(state, { press: 1, duration: 0.07, yoyo: true, repeat: 1 })
+    tl.call(() => screenOff(), [], "<")
+    tl.to({}, { duration: 0.5 })
+    // Off it goes, past the lamp cord, to the middle of the view.
+    tl.call(() => {
+      state.stage = 1
+      sound.whoosh(FLY * 0.8)
+    })
+    const start = tl.duration()
+    tl.to(state, { glow: 1, size: 1, duration: 0.5, ease: "sine.out" }, start)
+    tl.to(state, { t: 1, duration: FLY, ease: "sine.inOut" }, start)
+    tl.call(() => pullCord(false), [], start + FLY * easeInverse(CORD_AT))
+    // Arrived: it dissolves into the typing cursor.
     tl.call(() => {
       sound.chime()
       store.set({ outro: true })
-    })
-    tl.to(state, { size: 0.6, glow: 0, duration: 0.7, ease: "power2.in" }, "<")
+    }, [], start + FLY)
+    tl.to(state, { size: 0.6, glow: 0, duration: 0.4, ease: "power2.in" }, start + FLY)
     tl.to(state, { size: 0, duration: 0.01 })
 
     return () => {
@@ -114,7 +135,9 @@ export function Outro() {
   const onCurve = useMemo(() => new THREE.Vector3(), [])
   const tangent = useMemo(() => new THREE.Vector3(), [])
   useFrame((_, dt) => {
-    if (path.current) {
+    if (state.stage === 0 && approach.current) {
+      approach.current.getPointAt(state.a, state.pos)
+    } else if (path.current) {
       path.current.getPointAt(state.t, onCurve)
       // Ease into a spot a little in front of the camera, centred, so it ends right where the text starts.
       camera.getWorldDirection(camPoint).multiplyScalar(0.45).add(camera.position)
@@ -131,7 +154,7 @@ export function Outro() {
       pointer.current.quaternion.copy(camera.quaternion)
       pointer.current.rotateZ(state.tilt)
       pointer.current.visible = visible
-      pointer.current.scale.set(state.size, state.size, 1)
+      pointer.current.scale.set(state.size * (1 - state.press * 0.18), state.size * (1 - state.press * 0.18), 1)
     }
     if (fill.current) fill.current.color.copy(GREEN).multiplyScalar(1.4 + state.glow * 1.6)
     if (light.current) {
