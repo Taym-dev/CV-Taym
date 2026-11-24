@@ -67,7 +67,7 @@ function useBoot() {
     let cancelled = false
     const fonts = document.fonts?.load('64px "VT323"').catch(() => undefined) ?? Promise.resolve()
     // A short moment in the dark room first, after the loader has faded.
-    void Promise.all([fonts, new Promise((r) => setTimeout(r, 900))]).then(() => {
+    void Promise.all([fonts, new Promise((r) => setTimeout(r, 400))]).then(() => {
       if (cancelled) return
       startUp()
     })

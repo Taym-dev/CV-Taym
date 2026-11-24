@@ -127,7 +127,7 @@ function RotateHint() {
   )
 }
 
-const LINES = ["bedankt", "voor het kijken."]
+const LINES = ["Bedankt", "voor het kijken."]
 
 /**
  * The mouse pointer glided to the middle of the view and became the cursor of a terminal

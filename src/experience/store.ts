@@ -124,8 +124,8 @@ export function startUp() {
   store.set({ slide: 0, navigated: false, outro: false })
   setPhase("lamp")
   // The camera flies to the desk; on the way the lamp cord is pulled.
-  gsap.delayedCall(quick ? 0 : 1.1, () => pullCord(true))
-  gsap.delayedCall(quick ? 0.05 : 2.5, () => {
+  gsap.delayedCall(quick ? 0 : 0.9, () => pullCord(true))
+  gsap.delayedCall(quick ? 0.05 : 2.0, () => {
     setPhase("boot")
     glitch(0.6, 0.35, 0)
     gsap.fromTo(fx, { power: 0 }, { power: 1, duration: quick ? 0.01 : 1.1, delay: quick ? 0 : 0.5, ease: "power2.out" })
@@ -168,15 +168,20 @@ export function replay() {
   sound.beep()
 }
 
-/** Quit: the tube switches off. The rest of the show lives in Outro.tsx. */
+/** Quit. A mouse pointer comes in and clicks the screen off: see Outro.tsx. */
 export function quit() {
   if (store.get().phase !== "tour") return
   sound.unlock()
+  fx.off = 0
+  setPhase("off")
+  if (reducedMotion()) screenOff()
+}
+
+/** The tube collapses into a dot. Called by the pointer's click. */
+export function screenOff() {
   sound.powerOff()
   glitch(0.9, 0.3, 0.6)
-  fx.off = 0
   gsap.to(fx, { off: 1, duration: reducedMotion() ? 0.01 : 0.75, ease: "power2.in" })
-  setPhase("off")
 }
 
 /** Restart from the goodbye screen. */

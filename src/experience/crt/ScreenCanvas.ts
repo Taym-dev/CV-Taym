@@ -21,9 +21,9 @@ const BG = "#020604"
 const FONT = '"VT323", "JetBrains Mono", monospace'
 
 /** Boot timeline, seconds after the camera arrives at the desk. */
-const BOOT_DELAY = 1.0
-const LOAD_FROM = 3.0
-const LOAD_TO = 6.2
+const BOOT_DELAY = 0.8
+const LOAD_FROM = 2.6
+const LOAD_TO = 5.0
 
 type Region = { x: number; y: number; w: number; h: number; onClick: () => void }
 
