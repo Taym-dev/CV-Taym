@@ -1,11 +1,11 @@
-import { ChevronLeft, ChevronRight, Mail, Power } from "lucide-react"
+import { ChevronLeft, ChevronRight, FileText, Mail, Power } from "lucide-react"
 import { useEffect, useState } from "react"
 
 import { GithubIcon, LinkedinIcon } from "@/components/icons"
 import { profile } from "@/data/cv"
 
 import { sound } from "./audio"
-import { goToSlide, isTouch, reducedMotion, restart, SLIDE_COUNT, useStore } from "./store"
+import { goToSlide, isTouch, reducedMotion, restart, SLIDE_COUNT, store, useStore } from "./store"
 
 /**
  * HTML on top of the 3D scene: how to flip slides, big arrow buttons for thumbs,
@@ -200,11 +200,19 @@ function GoodbyeScreen() {
                 <Power className="size-6 transition-transform duration-500 group-hover:rotate-180" aria-hidden="true" />
                 opnieuw opstarten
               </button>
-              <a className={`${link} animate-rise-in [animation-delay:0.4s]`} href={`mailto:${profile.email}`}>
+              <button
+                type="button"
+                onClick={() => store.set({ textVersion: true })}
+                className="animate-rise-in pointer-events-auto inline-flex items-center gap-3 rounded-sm border-2 border-[#7fe39a]/60 bg-[#7fe39a]/10 px-6 py-3 text-3xl leading-none text-[#c8ffd2] transition hover:border-[#c8ffd2] hover:bg-[#7fe39a]/20 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#7fe39a] focus-visible:ring-offset-4 focus-visible:ring-offset-[#030403] active:scale-95 [animation-delay:0.35s]"
+              >
+                <FileText className="size-6" aria-hidden="true" />
+                duidelijke tekstversie
+              </button>
+              <a className={`${link} animate-rise-in [animation-delay:0.5s]`} href={`mailto:${profile.email}`}>
                 <Mail className="size-4" aria-hidden="true" />
                 mail mij
               </a>
-              <a className={`${link} animate-rise-in [animation-delay:0.55s]`} href={profile.github} target="_blank" rel="noopener noreferrer">
+              <a className={`${link} animate-rise-in [animation-delay:0.6s]`} href={profile.github} target="_blank" rel="noopener noreferrer">
                 <GithubIcon className="size-4" />
                 github
               </a>
