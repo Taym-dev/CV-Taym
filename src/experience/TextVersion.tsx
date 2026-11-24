@@ -175,8 +175,8 @@ export function TextVersion() {
               when: range(j.when),
               title: `${j.role} bij ${j.company}`,
               text: j.text,
+              tag: j.gained ? `Geleerd: ${j.gained}` : undefined,
             }))}
-            strong
           />
           <p className={`${subhead} mt-10`}>Naast school</p>
           <Timeline
@@ -349,11 +349,9 @@ function Timeline({ items, strong = false }: { items: { when: string; title: str
             aria-hidden="true"
           />
           <p className="font-[VT323] text-lg leading-none text-[#7f9686]">{item.when}</p>
-          <h3 className={`mt-1 font-semibold ${strong ? "text-lg text-[#eef6ef]" : "text-[#dce8de]"}`}>
-            {item.title}
-            {item.tag && <span className="ml-2 align-middle text-xs font-normal text-[#7fe39a]">· {item.tag}</span>}
-          </h3>
+          <h3 className={`mt-1 font-semibold ${strong ? "text-lg text-[#eef6ef]" : "text-[#dce8de]"}`}>{item.title}</h3>
           <p className="text-[#a9bcae]">{item.text}</p>
+          {item.tag && <p className="mt-1.5 inline-block rounded-md bg-[#7fe39a]/10 px-2 py-0.5 text-xs text-[#9dffb6]">{item.tag}</p>}
         </li>
       ))}
     </ol>

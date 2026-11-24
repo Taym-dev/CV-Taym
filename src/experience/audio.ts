@@ -200,6 +200,15 @@ export const sound = {
     for (let i = 0; i < 9; i++) noiseBurst(ac, t + 0.5 + Math.random() * 0.9, 0.006 + Math.random() * 0.01, 0.05 + Math.random() * 0.06, "highpass", 4500)
   },
 
+  /** Soft two note chime when the pointer turns into the text cursor. */
+  chime() {
+    const ac = audio()
+    if (!ac) return
+    const t = ac.currentTime
+    tone(ac, t, "sine", 880, 880, 0.9, 0.05)
+    tone(ac, t + 0.12, "sine", 1318, 1318, 1.2, 0.04)
+  },
+
   /** A mouse button: short plastic click. */
   mouseClick() {
     const ac = audio()

@@ -10,13 +10,11 @@ import { pullCord, reducedMotion, store, useStore } from "./store"
 
 /**
  * After AFSLUITEN the last dot of light on the tube turns into a glowing mouse pointer.
- * It climbs out of the glass (with old school pointer trails), clicks the lamp cord and
- * drags it down (the lamp dies), wanders through the dark room, double clicks
- * and then flies straight into the camera. There it flashes and becomes the blinking
- * cursor that types the goodbye (Overlays.tsx).
+ * It glides out of the glass in one smooth, unhurried path: past the lamp cord (which it
+ * tugs on the way, the lamp dies) and then to the middle of the view, where it fades
+ * into the blinking text cursor that types the goodbye (Overlays.tsx).
  */
 
-const GHOSTS = 6
 const GREEN = new THREE.Color("#9dffb6")
 
 /** Classic arrow pointer, tip at the origin, in pixels of a 12 x 19 cursor. */
@@ -51,42 +49,27 @@ export function Outro() {
   const pointer = useRef<THREE.Group>(null)
   const fill = useRef<THREE.MeshBasicMaterial>(null)
   const light = useRef<THREE.PointLight>(null)
-  const ghosts = useRef<(THREE.Mesh | null)[]>([])
-  const state = useMemo(() => ({ pos: new THREE.Vector3(), size: 0, glow: 0, follow: 0, toCam: 0, press: 0, from: new THREE.Vector3() }), [])
+  const state = useMemo(() => ({ pos: new THREE.Vector3(), size: 0, glow: 0, t: 0, tilt: 0 }), [])
   const camera = useThree((s) => s.camera)
-
   const geo = useMemo(() => ({ fill: arrowGeometry(0), edge: arrowGeometry(0.22) }), [])
-  // Pointer trails, like the Windows setting: a few fading copies of where it just was.
-  const history = useMemo(() => Array.from({ length: GHOSTS * 3 }, () => new THREE.Vector3()), [])
-  const ghostMats = useMemo(
-    () => Array.from({ length: GHOSTS }, (_, i) => new THREE.MeshBasicMaterial({ color: GREEN, transparent: true, opacity: 0.4 * (1 - i / GHOSTS), toneMapped: false, depthWrite: false, blending: THREE.AdditiveBlending })),
-    [],
-  )
+  const path = useRef<THREE.CatmullRomCurve3 | null>(null)
 
   useEffect(() => () => {
     geo.fill.dispose()
     geo.edge.dispose()
-    ghostMats.forEach((m) => m.dispose())
-  }, [geo, ghostMats])
+  }, [geo])
 
   // The choreography. Runs once each time the phase becomes "off".
   useEffect(() => {
     if (phase !== "off") {
       state.size = 0
       state.glow = 0
-      state.toCam = 0
+      state.t = 0
+      path.current = null
       return
     }
     const quick = reducedMotion()
-    const s = rig.screen.clone()
-    state.pos.copy(s)
-    history.forEach((h) => h.copy(s))
-    state.follow = 0
-    const near = (p: THREE.Vector3, x: number, y: number, z: number) => p.clone().add(new THREE.Vector3(x, y, z))
-    const toLamp = new THREE.CatmullRomCurve3([s, near(s, 0.02, 0.02, 0.22), near(s, -0.25, 0.25, 0.35), near(rig.bead, 0.05, 0.06, 0.12), near(rig.bead, 0, -0.012, 0.012)])
-    const fly = { t: 0 }
-    const tl = gsap.timeline({ delay: quick ? 0 : 0.7 })
-
+    const tl = gsap.timeline({ delay: quick ? 0 : 0.75 })
     if (quick) {
       tl.call(() => pullCord(false))
       tl.call(() => store.set({ outro: true }), [], 0.3)
@@ -95,89 +78,65 @@ export function Outro() {
       }
     }
 
-    // 1. The dot on the glass becomes a mouse pointer and climbs out.
-    tl.to(state, { size: 1, glow: 1, duration: 0.3, ease: "back.out(3)" })
-    tl.call(() => sound.whoosh(1.5), [], 0.05)
-    tl.to(fly, { t: 1, duration: 1.5, ease: "power1.inOut", onUpdate: () => toLamp.getPoint(fly.t, state.pos) }, 0.1)
-    // 2. Click on the cord and drag it down: the lamp dies.
-    tl.call(() => sound.mouseClick())
-    tl.to(state, { press: 1, duration: 0.06, yoyo: true, repeat: 1 })
-    tl.to(state, { follow: 1, duration: 0.01 })
+    const s = rig.screen.clone()
+    const b = rig.bead.clone()
+    const at = (p: THREE.Vector3, x: number, y: number, z: number) => p.clone().add(new THREE.Vector3(x, y, z))
+    // One continuous curve: out of the glass, up and over to the cord, brushing past the bead,
+    // then a wide easy arc out into the room. The last stretch blends towards the camera.
+    path.current = new THREE.CatmullRomCurve3(
+      [s, at(s, 0, 0.02, 0.18), at(s, -0.2, 0.2, 0.3), at(b, 0.06, 0.05, 0.08), at(b, 0.0, -0.01, 0.015), at(b, 0.1, -0.08, 0.18), new THREE.Vector3(0.15, 0.32, 0.75)],
+      false,
+      "centripetal",
+    )
+    state.pos.copy(s)
+    state.t = 0
+    const CORD_AT = 0.53
+
+    tl.to(state, { size: 1, glow: 1, duration: 0.6, ease: "power2.out" })
+    tl.call(() => sound.whoosh(2.4), [], 0.1)
+    tl.to(state, { t: 1, duration: 4.6, ease: "sine.inOut" }, 0.2)
+    // The cord gets pulled exactly when the pointer passes the bead.
+    tl.call(() => pullCord(false), [], 0.2 + 4.6 * easeInverse(CORD_AT))
+    // Arrived in the middle of the view: it dissolves into the typing cursor.
     tl.call(() => {
-      pullCord(false)
-    })
-    // 3. Hold on while the bead springs back, then let go and loop through the dark room.
-    tl.to({}, { duration: 0.6 })
-    tl.to(state, { follow: 0, duration: 0.01 })
-    const loop = { t: 0 }
-    let path: THREE.CatmullRomCurve3 | null = null
-    tl.call(() => {
-      const from = state.pos.clone()
-      path = new THREE.CatmullRomCurve3([from, near(from, 0.25, 0.15, 0.2), new THREE.Vector3(0.75, 0.72, 0.15), new THREE.Vector3(0.7, 0.3, 0.7), new THREE.Vector3(0.1, 0.38, 0.9)])
-      sound.whoosh(1.8)
-    })
-    tl.to(loop, { t: 1, duration: 1.8, ease: "sine.inOut", onUpdate: () => path?.getPoint(loop.t, state.pos) })
-    // 4. It stops, double clicks at you... then comes straight at the camera.
-    tl.to({}, { duration: 0.3 })
-    tl.call(() => sound.mouseClick())
-    tl.to(state, { press: 1, duration: 0.05, yoyo: true, repeat: 1 })
-    tl.call(() => sound.mouseClick(), [], "+=0.06")
-    tl.to(state, { press: 1, duration: 0.05, yoyo: true, repeat: 1 })
-    tl.to({}, { duration: 0.25 })
-    tl.call(() => {
-      state.from.copy(state.pos)
-      sound.rush()
-    })
-    tl.to(state, { toCam: 1, duration: 0.75, ease: "power3.in" })
-    tl.to(state, { size: 3, glow: 3, duration: 0.75, ease: "power3.in" }, "<")
-    // 5. Impact: flash, and the pointer becomes the cursor of the goodbye screen.
-    tl.call(() => {
-      sound.impact()
+      sound.chime()
       store.set({ outro: true })
     })
-    tl.to(state, { size: 0, glow: 0, duration: 0.08 })
+    tl.to(state, { size: 0.6, glow: 0, duration: 0.7, ease: "power2.in" }, "<")
+    tl.to(state, { size: 0, duration: 0.01 })
 
     return () => {
       tl.kill()
     }
-  }, [phase, state, history])
+  }, [phase, state])
 
   const camPoint = useMemo(() => new THREE.Vector3(), [])
-  const frameNo = useRef(0)
-  useFrame(() => {
-    if (state.follow > 0) state.pos.copy(rig.bead).add(new THREE.Vector3(0.004, 0.002, 0.01))
-    if (state.toCam > 0) {
-      // Just in front of the lens, so it fills the view right before the flash.
-      camera.getWorldDirection(camPoint).multiplyScalar(0.12).add(camera.position)
-      state.pos.lerpVectors(state.from, camPoint, state.toCam)
+  const onCurve = useMemo(() => new THREE.Vector3(), [])
+  const tangent = useMemo(() => new THREE.Vector3(), [])
+  useFrame((_, dt) => {
+    if (path.current) {
+      path.current.getPointAt(state.t, onCurve)
+      // Ease into a spot a little in front of the camera, centred, so it ends right where the text starts.
+      camera.getWorldDirection(camPoint).multiplyScalar(0.45).add(camera.position)
+      const k = THREE.MathUtils.smoothstep(state.t, 0.72, 1)
+      state.pos.lerpVectors(onCurve, camPoint, k)
+      // Lean a little into the direction of travel, like a hand moving a mouse.
+      path.current.getTangentAt(Math.min(0.999, state.t), tangent)
+      const lean = THREE.MathUtils.clamp(-tangent.x * 0.35, -0.3, 0.3) * (1 - k)
+      state.tilt += (lean - state.tilt) * (1 - Math.exp(-dt * 4))
     }
     const visible = state.size > 0.001
     if (pointer.current) {
       pointer.current.position.copy(state.pos)
-      // Always faces the camera, like a real cursor on glass.
       pointer.current.quaternion.copy(camera.quaternion)
+      pointer.current.rotateZ(state.tilt)
       pointer.current.visible = visible
-      // A click squashes it a little.
-      pointer.current.scale.set(state.size * (1 - state.press * 0.18), state.size * (1 - state.press * 0.18), 1)
+      pointer.current.scale.set(state.size, state.size, 1)
     }
-    if (fill.current) fill.current.color.copy(GREEN).multiplyScalar(1.6 + state.glow * 2 + state.press * 2)
-
-    // Trails: every other frame remember the position, ghosts sit further back in time.
-    if (frameNo.current++ % 2 === 0) {
-      for (let i = history.length - 1; i > 0; i--) history[i].copy(history[i - 1])
-      history[0].copy(state.pos)
-    }
-    ghosts.current.forEach((g, i) => {
-      if (!g) return
-      g.visible = visible && state.toCam === 0
-      g.position.copy(history[(i + 1) * 3 - 1])
-      g.quaternion.copy(camera.quaternion)
-      g.scale.set(state.size, state.size, 1)
-    })
-
+    if (fill.current) fill.current.color.copy(GREEN).multiplyScalar(1.4 + state.glow * 1.6)
     if (light.current) {
       light.current.position.copy(state.pos)
-      light.current.intensity = state.glow * 0.9
+      light.current.intensity = state.glow * 0.8
     }
   })
 
@@ -191,18 +150,12 @@ export function Outro() {
           <meshBasicMaterial ref={fill} color={GREEN} toneMapped={false} />
         </mesh>
       </group>
-      {ghostMats.map((m, i) => (
-        <mesh
-          key={i}
-          ref={(el) => {
-            ghosts.current[i] = el
-          }}
-          geometry={geo.fill}
-          material={m}
-          visible={false}
-        />
-      ))}
       <pointLight ref={light} color="#8dffaa" intensity={0} distance={2.2} decay={2} />
     </>
   )
+}
+
+/** Inverse of sine.inOut: at what share of the tween the eased value reaches v. */
+function easeInverse(v: number) {
+  return Math.acos(1 - 2 * v) / Math.PI
 }

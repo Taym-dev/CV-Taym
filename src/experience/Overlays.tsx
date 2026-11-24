@@ -130,7 +130,7 @@ function RotateHint() {
 const LINES = ["bedankt", "voor het kijken."]
 
 /**
- * The mouse pointer flew into the lens: a green flash, then it is the cursor of a terminal
+ * The mouse pointer glided to the middle of the view and became the cursor of a terminal
  * that types the goodbye. The buttons boot in line by line underneath.
  */
 function Goodbye() {
@@ -173,8 +173,6 @@ function GoodbyeScreen() {
 
   return (
     <div className="pointer-events-none fixed inset-0 z-10 flex flex-col items-center justify-center px-6 font-[VT323]" role="dialog" aria-label="Tot ziens">
-      {/* The impact: bright flash that burns out into a dark screen. */}
-      <div className="animate-impact-flash absolute inset-0 motion-reduce:hidden bg-[radial-gradient(circle_at_center,#f2fff5_0%,#9dffb6_30%,#030403_75%)]" aria-hidden="true" />
       <div className="animate-scan-in absolute inset-0 bg-[#030403]/80 bg-[repeating-linear-gradient(0deg,#0000_0_3px,#0006_3px_4px)]" aria-hidden="true" />
 
       <div className="relative w-full max-w-3xl">

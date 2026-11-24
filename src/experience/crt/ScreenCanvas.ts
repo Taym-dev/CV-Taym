@@ -416,26 +416,32 @@ export class ScreenCanvas {
   private slideExperience(t: number) {
     this.prompt("type ervaring.txt", t)
     let y = 150
-    const rows = [
-      ...experience.development.map((j) => ({ when: range(j.when), what: `${j.role.toLowerCase()} bij ${j.company}`, note: j.text, main: true })),
-      ...experience.other.map((j) => ({ when: range(j.when), what: `${j.role.toLowerCase()} bij ${j.company}`, note: j.gained ? `geleerd: ${j.gained.toLowerCase().replace("&", "en")}` : "", main: false })),
-    ]
+    // Every job looks the same: date, role and company, and what it taught.
+    const note = (j: { gained?: string; text: string }) => (j.gained ? `geleerd: ${j.gained.toLowerCase().replace("&", "en")}` : j.text.toLowerCase())
+    const rows = [...experience.development, ...experience.other].map((j) => ({
+      when: range(j.when).toLowerCase(),
+      what: `${j.role.toLowerCase()} bij ${j.company}`,
+      note: note(j),
+    }))
+    const dateCol = 250
+    const textX = 70 + dateCol + 24
     rows.forEach((r, i) => {
       const at = 0.5 + i * 0.75
       if (t < at) return
       if (i === experience.development.length) {
         this.ctx.fillStyle = FAINT
-        this.ctx.fillRect(70, y + 4, W - 140, 2)
-        this.text("naast school", 70, y + 16, 26, DIM)
-        y += 50
+        this.ctx.fillRect(70, y - 6, W - 140, 2)
+        this.text("naast school", 70, y + 4, 24, DIM)
+        y += 40
       }
-      this.text(r.when, 70, y, r.main ? 32 : 28, DIM)
-      this.text(this.typed(r.what, t - at, 50), 330, y, r.main ? 34 : 29, r.main ? BRIGHT : MID, "left", r.main ? 8 : 0)
-      y += r.main ? 40 : 34
-      if (r.note) {
-        this.text(r.note, 330, y, r.main ? 27 : 24, DIM)
-        y += r.main ? 46 : 36
-      }
+      // Long dates shrink so they never run into the job title.
+      let size = 28
+      while (size > 18 && this.measure(r.when, size) > dateCol) size--
+      this.text(r.when, 70, y + (28 - size) / 2 + 2, size, DIM)
+      this.text(this.typed(r.what, t - at, 50), textX, y, 31, BRIGHT, "left", 6)
+      y += 36
+      this.text(r.note, textX, y, 24, MID)
+      y += 40
     })
   }
 
