@@ -132,3 +132,60 @@
     scrollbar-color: var(--sb-thumb-color) var(--sb-track-color);
     }
 }
+/* ---------- 3D site: overlays ---------- */
+html, body {
+  overscroll-behavior: none;
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* Phosphor text that switches on like a tube: a few flickers, then steady glow. */
+@keyframes phosphor-on {
+  0% { opacity: 0; filter: blur(6px); }
+  8% { opacity: 0.9; filter: blur(0); }
+  12% { opacity: 0.1; }
+  20% { opacity: 1; }
+  24% { opacity: 0.35; }
+  34%, 100% { opacity: 1; }
+}
+@keyframes glow-pulse {
+  0%, 100% { text-shadow: 0 0 6px #7fe39a, 0 0 22px #3d9a5a, 0 0 48px #163d24; }
+  50% { text-shadow: 0 0 10px #c8ffd2, 0 0 32px #7fe39a, 0 0 70px #3d9a5a; }
+}
+@keyframes rgb-split {
+  0%, 92%, 100% { transform: none; text-shadow: inherit; }
+  93% { transform: translateX(-3px) skewX(-8deg); text-shadow: 3px 0 #ff4d6a, -3px 0 #4dc3ff; }
+  95% { transform: translateX(4px); text-shadow: -4px 0 #ff4d6a, 4px 0 #4dc3ff; }
+  97% { transform: translateX(-1px); }
+}
+@keyframes rise-in {
+  from { opacity: 0; transform: translateY(14px); }
+  to { opacity: 1; transform: none; }
+}
+@keyframes swipe-hand {
+  0% { transform: translateX(22px); opacity: 0; }
+  15% { opacity: 1; }
+  70% { transform: translateX(-22px); opacity: 1; }
+  100% { transform: translateX(-22px); opacity: 0; }
+}
+@keyframes key-press {
+  0%, 40%, 100% { transform: none; box-shadow: 0 3px 0 #3d9a5a; }
+  20% { transform: translateY(3px); box-shadow: 0 0 0 #3d9a5a; background: #7fe39a33; }
+}
+@keyframes nudge-x {
+  0%, 100% { transform: translateX(0); }
+  50% { transform: translateX(5px); }
+}
+@layer utilities {
+  .animate-phosphor-on { animation: phosphor-on 1.1s steps(20) both; }
+  .animate-glow { animation: glow-pulse 3.2s ease-in-out infinite; }
+  .animate-rgb-split { animation: rgb-split 4.5s steps(1) infinite; }
+  .animate-rise-in { animation: rise-in 0.6s cubic-bezier(0.2, 0.9, 0.1, 1) both; }
+  .animate-swipe-hand { animation: swipe-hand 1.6s ease-in-out infinite; }
+  .animate-key-press { animation: key-press 1.6s ease-in-out infinite; }
+  .animate-nudge-x { animation: nudge-x 1.2s ease-in-out infinite; }
+  .pb-safe { padding-bottom: max(0.75rem, env(safe-area-inset-bottom)); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .animate-phosphor-on, .animate-glow, .animate-rgb-split, .animate-rise-in, .animate-swipe-hand, .animate-key-press, .animate-nudge-x { animation: none; }
+}

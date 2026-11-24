@@ -1,6 +1,10 @@
 import { useTexture } from "@react-three/drei"
-import { useMemo } from "react"
+import { useFrame } from "@react-three/fiber"
+import { useMemo, useRef } from "react"
 import * as THREE from "three"
+
+import { CORD_PULL, CORD_TOP, LAMP, rig } from "./rig"
+import { fx } from "./store"
 
 /**
  * A small dark room: walnut desk, plaster wall, parquet floor, a desk lamp and a few
@@ -80,11 +84,9 @@ export function Room() {
 
 const metal = new THREE.MeshStandardMaterial({ color: "#1d1d1f", metalness: 0.7, roughness: 0.35 })
 
-/** Classic two arm desk lamp, left behind the computer. */
+/** Classic two arm desk lamp, left behind the computer, with a pull cord. */
 function DeskLamp() {
-  const base = new THREE.Vector3(-0.62, 0, -0.1)
-  const elbow = new THREE.Vector3(-0.66, 0.36, -0.2)
-  const head = new THREE.Vector3(-0.44, 0.52, -0.02)
+  const { base, elbow, head, headRotation } = LAMP
   const arm = (a: THREE.Vector3, b: THREE.Vector3) => {
     const mid = a.clone().add(b).multiplyScalar(0.5)
     const dir = b.clone().sub(a)
@@ -93,6 +95,15 @@ function DeskLamp() {
   }
   const a1 = arm(base, elbow)
   const a2 = arm(elbow, head)
+  const bulb = useRef<THREE.MeshStandardMaterial>(null)
+
+  useFrame(() => {
+    if (bulb.current) {
+      bulb.current.emissiveIntensity = 0.02 + fx.lampLit * 6
+      bulb.current.color.setScalar(0.25 + fx.lampLit * 0.75)
+    }
+  })
+
   return (
     <group>
       <mesh position={[base.x, 0.012, base.z]} material={metal} castShadow>
@@ -107,15 +118,54 @@ function DeskLamp() {
         <sphereGeometry args={[0.018, 16, 16]} />
       </mesh>
       {/* Shade, pointing down at the desk. */}
-      <group position={head} rotation={[0.55, 0, -0.75]}>
+      <group position={head} rotation={headRotation}>
         <mesh material={metal} castShadow>
           <coneGeometry args={[0.085, 0.13, 48, 1, true]} />
         </mesh>
         <mesh position={[0, -0.03, 0]}>
           <sphereGeometry args={[0.028, 24, 16]} />
-          <meshStandardMaterial color="#fff1d6" emissive="#ffd9a0" emissiveIntensity={6} toneMapped={false} />
+          <meshStandardMaterial ref={bulb} color="#fff1d6" emissive="#ffd9a0" emissiveIntensity={0} toneMapped={false} />
         </mesh>
       </group>
+      <PullCord />
+    </group>
+  )
+}
+
+const brass = new THREE.MeshStandardMaterial({ color: "#b08a4a", metalness: 0.85, roughness: 0.3 })
+const chain = new THREE.MeshStandardMaterial({ color: "#8a8a8a", metalness: 0.9, roughness: 0.35 })
+
+/** Bead chain hanging from the shade. fx.cord pulls it down, fx.swing lets it sway. */
+function PullCord() {
+  const pivot = useRef<THREE.Group>(null)
+  const line = useRef<THREE.Mesh>(null)
+  const bead = useRef<THREE.Mesh>(null)
+  const tmp = useMemo(() => new THREE.Vector3(), [])
+
+  useFrame((state) => {
+    const t = state.clock.elapsedTime
+    const len = LAMP.cordLength + fx.cord * CORD_PULL
+    if (line.current) {
+      line.current.scale.y = len
+      line.current.position.y = -len / 2
+    }
+    if (bead.current) bead.current.position.y = -len - 0.008
+    if (pivot.current) {
+      // Damped pendulum after a pull, and a tiny draft the rest of the time.
+      pivot.current.rotation.z = Math.sin(t * 7.5) * 0.22 * fx.swing + Math.sin(t * 0.9) * 0.012
+      pivot.current.rotation.x = Math.sin(t * 6.1 + 1) * 0.12 * fx.swing
+      if (bead.current) rig.bead.copy(bead.current.getWorldPosition(tmp))
+    }
+  })
+
+  return (
+    <group ref={pivot} position={CORD_TOP}>
+      <mesh ref={line} material={chain}>
+        <cylinderGeometry args={[0.0011, 0.0011, 1, 6]} />
+      </mesh>
+      <mesh ref={bead} material={brass} castShadow>
+        <sphereGeometry args={[0.0075, 16, 12]} />
+      </mesh>
     </group>
   )
 }

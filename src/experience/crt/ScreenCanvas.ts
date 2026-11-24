@@ -3,7 +3,7 @@ import * as THREE from "three"
 import { experience, hero, languages, profile, projects, softSkills, stack, tldr } from "@/data/cv"
 
 import { sound } from "../audio"
-import { fx, goToSlide, setPhase, SLIDE_COUNT, startTour, store } from "../store"
+import { fx, goToSlide, isTouch, quit, replay, setPhase, SLIDE_COUNT, startTour, store } from "../store"
 
 /**
  * Everything shown on the CRT is drawn here on a 2D canvas, every frame.
@@ -19,9 +19,6 @@ const DIM = "#3d9a5a"
 const FAINT = "#163d24"
 const BG = "#020604"
 const FONT = '"VT323", "JetBrains Mono", monospace'
-
-/** Seconds per slide. The last one (contact) stays until the visitor leaves. */
-const DURATIONS = [10, 10, 13, 13, 12, Infinity]
 
 /** Boot timeline, seconds after the camera arrives at the desk. */
 const BOOT_DELAY = 1.9
@@ -193,19 +190,17 @@ export class ScreenCanvas {
   // ---------------------------------------------------------------------------
   // Frame
 
-  update(now: number, dt: number) {
+  update(now: number) {
     const c = this.ctx
     this.regions = []
     this.typedChars = 0
     c.fillStyle = BG
     c.fillRect(0, 0, W, H)
 
-    const { phase, paused } = store.get()
-    // While paused the slide clock stands still.
-    if (phase === "tour" && paused) fx.slideAt += dt
+    const { phase } = store.get()
     if (phase === "boot") this.drawBoot(now - fx.phaseAt - BOOT_DELAY, now)
     else if (phase === "ready") this.drawReady(now - fx.phaseAt, now)
-    else if (phase === "tour") this.drawTour(now)
+    else if (phase === "tour" || phase === "off") this.drawTour(now)
 
     // Typing sound while text appears (throttled).
     if (this.typedChars !== this.lastTick && now - this.lastTickTime > 0.045 && phase !== "ready") {
@@ -270,14 +265,14 @@ export class ScreenCanvas {
     const hint = "klik op START of druk op Enter"
     const w = this.text(hint, W / 2, 505, 32, MID, "center")
     this.cursor(W / 2 + w / 2, 505, 32, now)
-    this.text("ongeveer 1 minuut, met geluid", W / 2, 550, 26, DIM, "center")
+    this.text(isTouch() ? "daarna zelf bladeren door te vegen" : "daarna zelf bladeren met de pijltjes", W / 2, 550, 26, DIM, "center")
   }
 
   // ---------------------------------------------------------------------------
   // Tour
 
   private drawTour(now: number) {
-    const { slide, paused } = store.get()
+    const { slide } = store.get()
     const t = now - fx.slideAt
 
     // Top bar.
@@ -296,43 +291,60 @@ export class ScreenCanvas {
       draw.call(this, t, now)
     }
 
-    // Bottom: video style controls.
+    // Bottom: arrows and one segment per slide, filled up to the current one.
     const y = H - 74
-    const dur = DURATIONS[slide]
-    const progress = dur === Infinity ? 1 : Math.min(1, Math.max(0, t / dur))
     const x0 = 120
-    const x1 = W - 54
+    const x1 = W - 120
     const seg = (x1 - x0) / SLIDE_COUNT
     for (let i = 0; i < SLIDE_COUNT; i++) {
       const sx = x0 + i * seg + 3
       const sw = seg - 6
-      this.regions.push({ x: sx, y: y - 14, w: sw, h: 40, onClick: () => goToSlide(i) })
-      this.ctx.fillStyle = FAINT
+      const index = this.regions.push({ x: sx, y: y - 14, w: sw, h: 40, onClick: () => goToSlide(i) }) - 1
+      this.ctx.fillStyle = this.hoverIndex === index ? DIM : FAINT
       this.ctx.fillRect(sx, y + 4, sw, 6)
-      const fill = i < slide ? 1 : i === slide ? progress : 0
-      this.ctx.fillStyle = BRIGHT
-      this.ctx.shadowColor = BRIGHT
-      this.ctx.shadowBlur = 8
-      this.ctx.fillRect(sx, y + 4, sw * fill, 6)
-      this.ctx.shadowBlur = 0
+      if (i <= slide) {
+        this.ctx.fillStyle = i === slide ? BRIGHT : MID
+        this.ctx.shadowColor = BRIGHT
+        this.ctx.shadowBlur = i === slide ? 12 : 4
+        this.ctx.fillRect(sx, y + 4, sw, 6)
+        this.ctx.shadowBlur = 0
+      }
     }
-    // Play / pause.
-    const pi = this.regions.push({ x: 40, y: y - 18, w: 60, h: 46, onClick: () => store.set({ paused: !store.get().paused }) }) - 1
-    this.ctx.fillStyle = this.hoverIndex === pi ? BRIGHT : MID
-    if (paused) {
-      this.ctx.beginPath()
-      this.ctx.moveTo(58, y - 6)
-      this.ctx.lineTo(82, y + 7)
-      this.ctx.lineTo(58, y + 20)
-      this.ctx.fill()
-    } else {
-      this.ctx.fillRect(58, y - 6, 8, 26)
-      this.ctx.fillRect(73, y - 6, 8, 26)
-    }
-    this.text("pijltjes of klik om te bladeren, Esc om terug te gaan", W / 2, H - 42, 24, DIM, "center")
+    this.arrow(-1, 40, y - 16, slide > 0, () => goToSlide(slide - 1), now)
+    this.arrow(1, W - 100, y - 16, slide < SLIDE_COUNT - 1, () => goToSlide(slide + 1), now)
+    const hint = slide === SLIDE_COUNT - 1
+      ? "kies hierboven: opnieuw kijken of afsluiten"
+      : isTouch()
+        ? "veeg naar links of tik op het scherm voor de volgende"
+        : "\u2190 \u2192 pijltjes om te bladeren, Esc om terug te gaan"
+    this.text(hint, W / 2, H - 42, 24, DIM, "center")
+  }
 
-    // Auto advance like a video.
-    if (!paused && t > dur && slide < SLIDE_COUNT - 1) goToSlide(slide + 1)
+  /** Clickable arrow in the control bar. Blinks on the first slide so people see it. */
+  private arrow(dir: -1 | 1, x: number, y: number, enabled: boolean, onClick: () => void, now: number) {
+    const w = 60
+    const h = 46
+    const c = this.ctx
+    let color = FAINT
+    if (enabled) {
+      const index = this.regions.push({ x, y, w, h, onClick }) - 1
+      const nudge = dir === 1 && !store.get().navigated
+      const pulse = nudge ? 0.5 + 0.5 * Math.sin(now * 6) : 1
+      color = this.hoverIndex === index || pulse > 0.6 ? BRIGHT : MID
+      if (nudge) x += Math.sin(now * 6) * 4
+    }
+    c.fillStyle = color
+    c.shadowColor = color
+    c.shadowBlur = enabled ? 10 : 0
+    c.beginPath()
+    const cx = x + w / 2
+    const cy = y + h / 2
+    c.moveTo(cx - dir * 12, cy - 15)
+    c.lineTo(cx + dir * 14, cy)
+    c.lineTo(cx - dir * 12, cy + 15)
+    c.closePath()
+    c.fill()
+    c.shadowBlur = 0
   }
 
   private prompt(cmd: string, t: number) {
@@ -483,8 +495,12 @@ export class ScreenCanvas {
       this.text("linkedin", 70, y + 4, 28, DIM)
       this.link("linkedin", 240, y, 40, () => window.open(profile.linkedin, "_blank", "noopener"))
     }
-    y += 90
-    const w = this.link("> opnieuw bekijken", 70, y, 32, () => goToSlide(0))
-    this.cursor(70 + w, y, 32, now)
+    if (t < 2.6) return
+    // The end: two big choices.
+    const by = H - 200
+    const bw = 380
+    const bh = 84
+    this.button("KIJK OPNIEUW", 70, by, bw, bh, 46, replay, now)
+    this.button("AFSLUITEN", W - 70 - bw, by, bw, bh, 46, quit, now)
   }
 }

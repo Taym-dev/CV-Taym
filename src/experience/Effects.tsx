@@ -7,7 +7,7 @@ import * as THREE from "three"
 import { fx } from "./store"
 
 /** Film look for the whole frame. Chromatic aberration and grain jump up during a glitch. */
-export function Effects() {
+export function Effects({ multisampling = 4 }: { multisampling?: number }) {
   const noise = useRef<NoiseEffect>(null)
   const offset = useMemo(() => new THREE.Vector2(0.0005, 0.0002), [])
 
@@ -17,7 +17,7 @@ export function Effects() {
   })
 
   return (
-    <EffectComposer multisampling={4}>
+    <EffectComposer multisampling={multisampling}>
       <Bloom mipmapBlur intensity={0.85} luminanceThreshold={0.8} luminanceSmoothing={0.25} radius={0.72} />
       <ChromaticAberration offset={offset} radialModulation={false} modulationOffset={0} />
       <Noise ref={noise} premultiply blendFunction={BlendFunction.SCREEN} opacity={0.06} />
