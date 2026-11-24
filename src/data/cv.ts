@@ -123,6 +123,7 @@ export const experience: { development: Job[]; other: Job[] } = {
       company: "Webroses",
       when: "Aug 2024 – Feb 2025",
       text: "Websites bouwen binnen een webbureau.",
+      gained: "Werken met deadlines & feedback",
     },
   ],
   other: [

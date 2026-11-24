@@ -201,3 +201,11 @@ html, body {
 @media (prefers-reduced-motion: reduce) {
   .animate-impact-flash, .animate-scan-in, .animate-phosphor-on, .animate-glow, .animate-rgb-split, .animate-rise-in, .animate-swipe-hand, .animate-key-press, .animate-nudge-x { animation: none; }
 }
+
+/* Text version printed or saved as pdf: only the cv, dark ink on white. */
+@media print {
+  body * { visibility: hidden; }
+  .cv-page, .cv-page * { visibility: visible; }
+  .cv-page { position: absolute !important; inset: 0 auto auto 0 !important; width: 100%; height: auto !important; overflow: visible !important; background: #fff !important; animation: none !important; }
+  .cv-page * { color: #111 !important; background: transparent !important; box-shadow: none !important; text-shadow: none !important; border-color: #ccc !important; }
+}
