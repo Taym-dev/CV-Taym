@@ -177,16 +177,61 @@ export const sound = {
     noiseBurst(ac, t, 0.25, 0.04, "bandpass", 1800, 6)
   },
 
-  /** CRT switching off: the high whine drops away with a soft thump. */
+  /**
+   * CRT switching off, in three parts that follow the picture:
+   * a relay clack, the high whine sliding down while the picture folds into a line,
+   * a soft "tjoep" when the line becomes a dot, and a faint crackle of static discharge.
+   */
   powerOff() {
     const ac = audio()
     if (!ac) return
     const t = ac.currentTime
-    noiseBurst(ac, t, 0.03, 0.4, "highpass", 2500)
-    tone(ac, t, "sine", 1800, 60, 0.7, 0.08)
-    tone(ac, t + 0.02, "sine", 120, 30, 0.5, 0.6)
-    noiseBurst(ac, t + 0.05, 0.6, 0.08, "highpass", 5000)
     hum?.stop()
+    // Relay.
+    noiseBurst(ac, t, 0.025, 0.45, "highpass", 2200)
+    tone(ac, t, "square", 180, 90, 0.04, 0.08)
+    // Whine drops away.
+    tone(ac, t + 0.01, "sine", 15625, 2000, 0.5, 0.05)
+    tone(ac, t + 0.01, "sawtooth", 880, 55, 0.55, 0.07)
+    // Line folds into a dot: soft low "tjoep".
+    tone(ac, t + 0.42, "sine", 420, 70, 0.28, 0.35)
+    tone(ac, t + 0.42, "triangle", 1400, 300, 0.12, 0.06)
+    // Static discharge crackles off the glass.
+    for (let i = 0; i < 9; i++) noiseBurst(ac, t + 0.5 + Math.random() * 0.9, 0.006 + Math.random() * 0.01, 0.05 + Math.random() * 0.06, "highpass", 4500)
+  },
+
+  /** The spark races at the camera: rising tone and wind. */
+  rush() {
+    const ac = audio()
+    if (!ac) return
+    const t = ac.currentTime
+    tone(ac, t, "sine", 300, 2400, 0.75, 0.06)
+    const src = ac.createBufferSource()
+    src.buffer = noiseBuffer(ac)
+    src.loop = true
+    const f = ac.createBiquadFilter()
+    f.type = "bandpass"
+    f.Q.value = 1.5
+    f.frequency.setValueAtTime(500, t)
+    f.frequency.exponentialRampToValueAtTime(5000, t + 0.75)
+    const g = ac.createGain()
+    g.gain.setValueAtTime(0.0001, t)
+    g.gain.exponentialRampToValueAtTime(0.22, t + 0.72)
+    g.gain.exponentialRampToValueAtTime(0.0001, t + 0.8)
+    src.connect(f).connect(g).connect(master!)
+    src.start(t)
+    src.stop(t + 0.85)
+  },
+
+  /** The spark hits the lens: a deep thump and a bright ping that rings out. */
+  impact() {
+    const ac = audio()
+    if (!ac) return
+    const t = ac.currentTime
+    tone(ac, t, "sine", 110, 32, 0.7, 0.7)
+    noiseBurst(ac, t, 0.18, 0.3, "lowpass", 900)
+    tone(ac, t + 0.02, "sine", 1568, 1568, 1.4, 0.05)
+    tone(ac, t + 0.02, "sine", 2093, 2093, 1.1, 0.03)
   },
 
   /** The spark flying through the room. */
@@ -211,17 +256,6 @@ export const sound = {
     src.start(t)
     src.stop(t + duration + 0.05)
     tone(ac, t, "sine", 660, 1320, duration, 0.025)
-  },
-
-  /** The spark bursts into dust: bright chime with a crackle. */
-  burst() {
-    const ac = audio()
-    if (!ac) return
-    const t = ac.currentTime
-    noiseBurst(ac, t, 0.5, 0.25, "highpass", 3000)
-    tone(ac, t, "sine", 80, 30, 0.6, 0.5)
-    ;[523, 659, 784, 1047].forEach((f, i) => tone(ac, t + 0.03 + i * 0.07, "triangle", f, f, 0.9, 0.05))
-    for (let i = 0; i < 10; i++) noiseBurst(ac, t + 0.1 + Math.random() * 0.8, 0.01, 0.08, "highpass", 6000)
   },
 
   /** Typing tick for the typewriter text. */

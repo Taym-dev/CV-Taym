@@ -7,11 +7,11 @@ import { sound } from "./audio"
 /**
  * Flow of the site:
  * loading  assets download, camera waits in the dark room
- * lamp     someone pulls the cord of the desk lamp, it flickers on
- * boot     camera has zoomed to the desk, the screen powers on and runs portfolio_Taym.exe
+ * lamp     camera flies to the desk, the cord of the desk lamp is pulled and it flickers on
+ * boot     camera is at the desk, the screen powers on and runs portfolio_Taym.exe
  * ready    the big START button is on the screen
  * tour     camera looks straight at the screen, the visitor flips through the CV slides
- * off      the visitor quit: the tube collapses, a spark escapes and turns the lamp off
+ * off      the visitor quit: the tube collapses, a spark escapes, turns the lamp off and flies into the camera
  */
 export type Phase = "loading" | "lamp" | "boot" | "ready" | "tour" | "off"
 
@@ -123,12 +123,12 @@ export function startUp() {
   fx.off = 0
   store.set({ slide: 0, navigated: false, outro: false })
   setPhase("lamp")
-  // The camera glides to the lamp first, then the cord is pulled.
-  gsap.delayedCall(quick ? 0 : 1.35, () => pullCord(true))
-  gsap.delayedCall(quick ? 0.05 : 3.1, () => {
+  // The camera flies to the desk; on the way the lamp cord is pulled.
+  gsap.delayedCall(quick ? 0 : 1.1, () => pullCord(true))
+  gsap.delayedCall(quick ? 0.05 : 2.5, () => {
     setPhase("boot")
     glitch(0.6, 0.35, 0)
-    gsap.fromTo(fx, { power: 0 }, { power: 1, duration: quick ? 0.01 : 1.1, delay: quick ? 0 : 1.6, ease: "power2.out" })
+    gsap.fromTo(fx, { power: 0 }, { power: 1, duration: quick ? 0.01 : 1.1, delay: quick ? 0 : 0.5, ease: "power2.out" })
   })
 }
 
