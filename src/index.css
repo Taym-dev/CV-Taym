@@ -176,7 +176,19 @@ html, body {
   0%, 100% { transform: translateX(0); }
   50% { transform: translateX(5px); }
 }
+@keyframes impact-flash {
+  0% { opacity: 1; transform: scale(0.2); }
+  12% { opacity: 1; transform: scale(1.6); }
+  100% { opacity: 0; transform: scale(2.2); }
+}
+@keyframes scan-in {
+  0% { opacity: 0; clip-path: inset(50% 0 50% 0); }
+  30% { opacity: 1; clip-path: inset(49.5% 0 49.5% 0); }
+  100% { opacity: 1; clip-path: inset(0 0 0 0); }
+}
 @layer utilities {
+  .animate-impact-flash { animation: impact-flash 1.1s cubic-bezier(0.1, 0.8, 0.2, 1) both; }
+  .animate-scan-in { animation: scan-in 0.8s cubic-bezier(0.6, 0, 0.2, 1) 0.15s both; }
   .animate-phosphor-on { animation: phosphor-on 1.1s steps(20) both; }
   .animate-glow { animation: glow-pulse 3.2s ease-in-out infinite; }
   .animate-rgb-split { animation: rgb-split 4.5s steps(1) infinite; }
@@ -187,5 +199,5 @@ html, body {
   .pb-safe { padding-bottom: max(0.75rem, env(safe-area-inset-bottom)); }
 }
 @media (prefers-reduced-motion: reduce) {
-  .animate-phosphor-on, .animate-glow, .animate-rgb-split, .animate-rise-in, .animate-swipe-hand, .animate-key-press, .animate-nudge-x { animation: none; }
+  .animate-impact-flash, .animate-scan-in, .animate-phosphor-on, .animate-glow, .animate-rgb-split, .animate-rise-in, .animate-swipe-hand, .animate-key-press, .animate-nudge-x { animation: none; }
 }

@@ -9,8 +9,7 @@ import { reducedMotion, useStore, type Phase } from "./store"
 /**
  * Camera positions:
  * room    wide shot of the room while the site loads
- * lamp    close to the desk lamp while its cord is pulled
- * desk    desk, keyboard and monitor in view, START on the screen (boot and ready)
+ * desk    desk, keyboard and monitor in view: the lamp switches on, the screen boots, START (lamp, boot, ready)
  * screen  straight at the CRT, the glass fills most of the window, a sliver of bezel around it (tour)
  * out     slow pull back into the dark room after quitting (off)
  * Positions are recalculated every frame so they keep fitting when the window resizes.
@@ -19,13 +18,11 @@ import { reducedMotion, useStore, type Phase } from "./store"
 const ROOM = { pos: new THREE.Vector3(1.55, 0.95, 2.7), look: new THREE.Vector3(0, 0.12, 0) }
 const DESK_LOOK = new THREE.Vector3(0, 0.2, 0.12)
 const DESK_DIR = new THREE.Vector3(0.16, 0.3, 1).normalize()
-const LAMP_LOOK = new THREE.Vector3(-0.46, 0.42, 0.02)
-const LAMP_DIR = new THREE.Vector3(0.45, 0.08, 1).normalize()
 const OUT_LOOK = new THREE.Vector3(-0.12, 0.36, 0.3)
 const OUT_DIR = new THREE.Vector3(0.32, 0.22, 1).normalize()
 
 const TRANSITIONS: Partial<Record<Phase, { duration: number; ease: string }>> = {
-  lamp: { duration: 1.6, ease: "power2.inOut" },
+  lamp: { duration: 2.1, ease: "expo.inOut" },
   boot: { duration: 2.1, ease: "expo.inOut" },
   off: { duration: 4.5, ease: "power2.inOut" },
   tour: { duration: 1.7, ease: "power3.inOut" },
@@ -53,7 +50,7 @@ export function CameraRig({ screenBox }: { screenBox: THREE.Box3 | null }) {
     from.current.look.copy(current.current.look)
     const t = TRANSITIONS[phase]
     if (!t) return
-    // boot -> ready keeps the same framing: no move needed.
+    // lamp -> boot -> ready keep the same framing: no move needed.
     if (blend.current.p === 1 && from.current.pos.distanceTo(target(phase).pos) < 0.06) return
     blend.current.p = 0
     if (reducedMotion()) {
@@ -72,7 +69,6 @@ export function CameraRig({ screenBox }: { screenBox: THREE.Box3 | null }) {
   function target(p: Phase) {
     const portrait = camera.aspect < 1
     if (p === "loading") return ROOM
-    if (p === "lamp") return { pos: LAMP_LOOK.clone().addScaledVector(LAMP_DIR, fit(0.5, 0.5)), look: LAMP_LOOK }
     if (p === "off") return { pos: OUT_LOOK.clone().addScaledVector(OUT_DIR, fit(1.5, 1.05)), look: OUT_LOOK }
     if (p === "tour" && screenBox) {
       const center = screenBox.getCenter(new THREE.Vector3())

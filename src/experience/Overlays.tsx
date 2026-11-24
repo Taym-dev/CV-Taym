@@ -4,7 +4,8 @@ import { useEffect, useState } from "react"
 import { GithubIcon, LinkedinIcon } from "@/components/icons"
 import { profile } from "@/data/cv"
 
-import { goToSlide, isTouch, restart, SLIDE_COUNT, useStore } from "./store"
+import { sound } from "./audio"
+import { goToSlide, isTouch, reducedMotion, restart, SLIDE_COUNT, useStore } from "./store"
 
 /**
  * HTML on top of the 3D scene: how to flip slides, big arrow buttons for thumbs,
@@ -126,52 +127,98 @@ function RotateHint() {
   )
 }
 
-/** After the spark has burst: goodbye, in phosphor green, floating in the dark room. */
+const LINES = ["bedankt", "voor het kijken."]
+
+/**
+ * The spark flew into the lens: a green flash, then it is the cursor of a terminal
+ * that types the goodbye. The buttons boot in line by line underneath.
+ */
 function Goodbye() {
   const outro = useStore((s) => s.outro)
   const phase = useStore((s) => s.phase)
   if (!outro || phase !== "off") return null
+  return <GoodbyeScreen />
+}
+
+function GoodbyeScreen() {
+  const quick = reducedMotion()
+  const total = LINES.join("").length
+  const [typed, setTyped] = useState(quick ? total : 0)
+  const done = typed >= total
+
+  useEffect(() => {
+    if (quick) return
+    let n = 0
+    let timer = 0
+    const next = () => {
+      n++
+      setTyped(n)
+      sound.tick()
+      if (n < total) timer = window.setTimeout(next, 55 + Math.random() * 70 + (n === LINES[0].length ? 280 : 0))
+    }
+    timer = window.setTimeout(next, 900)
+    return () => clearTimeout(timer)
+  }, [quick, total])
+
+  let left = typed
+  const shown = LINES.map((line) => {
+    const part = line.slice(0, Math.max(0, left))
+    left -= line.length
+    return part
+  })
+  const cursorLine = done ? LINES.length - 1 : shown.findIndex((part, i) => part.length < LINES[i].length)
 
   const link =
     "pointer-events-auto inline-flex items-center gap-2 rounded-sm px-3 py-2 font-[VT323] text-xl leading-none text-[#7fe39a] transition-colors hover:text-[#c8ffd2] focus-visible:outline focus-visible:outline-1 focus-visible:outline-[#7fe39a]"
 
   return (
-    <div className="pointer-events-none fixed inset-0 z-10 flex flex-col items-center justify-center px-6 text-center font-[VT323]" role="dialog" aria-label="Tot ziens">
-      <div className="animate-rise-in absolute inset-0 bg-[radial-gradient(ellipse_at_center,#030403d9_0%,#030403a0_45%,#03040300_75%)]" aria-hidden="true" />
-      <p className="animate-phosphor-on relative text-lg tracking-[0.35em] text-[#3d9a5a] sm:text-xl">verbinding verbroken</p>
-      <h2 className="animate-phosphor-on animate-glow relative mt-3 text-[clamp(3rem,12vw,7.5rem)] leading-[0.9] text-[#c8ffd2] [animation-delay:0.25s,1.4s]">
-        <span className="animate-rgb-split inline-block">bedankt</span>
-        <br />
-        <span className="animate-rgb-split inline-block [animation-delay:1.7s]">voor het kijken</span>
-      </h2>
-      <p className="animate-rise-in relative mt-5 text-xl text-[#7fe39a] [animation-delay:1s] sm:text-2xl">
-        {profile.name} · {profile.role.toLowerCase()} · {profile.city}
-      </p>
+    <div className="pointer-events-none fixed inset-0 z-10 flex flex-col items-center justify-center px-6 font-[VT323]" role="dialog" aria-label="Tot ziens">
+      {/* The impact: bright flash that burns out into a dark screen. */}
+      <div className="animate-impact-flash absolute inset-0 motion-reduce:hidden bg-[radial-gradient(circle_at_center,#f2fff5_0%,#9dffb6_30%,#030403_75%)]" aria-hidden="true" />
+      <div className="animate-scan-in absolute inset-0 bg-[#030403]/80 bg-[repeating-linear-gradient(0deg,#0000_0_3px,#0006_3px_4px)]" aria-hidden="true" />
 
-      <button
-        type="button"
-        onClick={restart}
-        autoFocus
-        className="animate-rise-in group pointer-events-auto relative mt-9 inline-flex items-center gap-3 rounded-sm border-2 border-[#c8ffd2] px-7 py-3 text-3xl leading-none text-[#c8ffd2] shadow-[0_0_24px_#7fe39a66,inset_0_0_18px_#7fe39a33] transition hover:bg-[#c8ffd2] hover:text-[#020604] focus-visible:bg-[#c8ffd2] focus-visible:text-[#020604] focus-visible:outline-none active:scale-95 [animation-delay:1.4s]"
-      >
-        <Power className="size-6 transition-transform duration-500 group-hover:rotate-180" aria-hidden="true" />
-        opnieuw opstarten
-      </button>
+      <div className="relative w-full max-w-3xl">
+        <p className="animate-rise-in text-lg text-[#3d9a5a] [animation-delay:0.7s] sm:text-xl">C:\&gt; exit</p>
+        <h2 className="mt-2 text-[clamp(3.2rem,13vw,8rem)] leading-[0.88] text-[#c8ffd2] [text-shadow:0_0_10px_#7fe39a,0_0_36px_#3d9a5a]" aria-label={LINES.join(" ")}>
+          {LINES.map((line, i) => (
+            <span key={line} className="block min-h-[0.88em]" aria-hidden="true">
+              {shown[i]}
+              {i === cursorLine && <span className="animate-blink ml-1 inline-block h-[0.78em] w-[0.5em] translate-y-[0.08em] bg-[#c8ffd2] shadow-[0_0_18px_#9dffb6]" />}
+            </span>
+          ))}
+        </h2>
 
-      <div className="animate-rise-in relative mt-6 flex flex-wrap justify-center gap-2 [animation-delay:1.8s]">
-        <a className={link} href={`mailto:${profile.email}`}>
-          <Mail className="size-4" aria-hidden="true" />
-          mail mij
-        </a>
-        <a className={link} href={profile.github} target="_blank" rel="noopener noreferrer">
-          <GithubIcon className="size-4" />
-          github
-        </a>
-        {profile.linkedin && (
-          <a className={link} href={profile.linkedin} target="_blank" rel="noopener noreferrer">
-            <LinkedinIcon className="size-4" />
-            linkedin
-          </a>
+        {done && (
+          <>
+            <p className="animate-rise-in mt-6 text-xl text-[#7fe39a] sm:text-2xl">
+              {profile.name} · {profile.role.toLowerCase()} · {profile.city}
+            </p>
+            <div className="mt-8 flex flex-wrap items-center gap-x-2 gap-y-3">
+              <button
+                type="button"
+                onClick={restart}
+                autoFocus
+                className="animate-rise-in group pointer-events-auto inline-flex items-center gap-3 rounded-sm border-2 border-[#c8ffd2] px-6 py-3 text-3xl leading-none text-[#c8ffd2] shadow-[0_0_24px_#7fe39a55,inset_0_0_18px_#7fe39a22] transition hover:bg-[#c8ffd2] hover:text-[#020604] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#7fe39a] focus-visible:ring-offset-4 focus-visible:ring-offset-[#030403] active:scale-95 [animation-delay:0.2s]"
+              >
+                <Power className="size-6 transition-transform duration-500 group-hover:rotate-180" aria-hidden="true" />
+                opnieuw opstarten
+              </button>
+              <a className={`${link} animate-rise-in [animation-delay:0.4s]`} href={`mailto:${profile.email}`}>
+                <Mail className="size-4" aria-hidden="true" />
+                mail mij
+              </a>
+              <a className={`${link} animate-rise-in [animation-delay:0.55s]`} href={profile.github} target="_blank" rel="noopener noreferrer">
+                <GithubIcon className="size-4" />
+                github
+              </a>
+              {profile.linkedin && (
+                <a className={`${link} animate-rise-in [animation-delay:0.7s]`} href={profile.linkedin} target="_blank" rel="noopener noreferrer">
+                  <LinkedinIcon className="size-4" />
+                  linkedin
+                </a>
+              )}
+            </div>
+          </>
         )}
       </div>
     </div>
