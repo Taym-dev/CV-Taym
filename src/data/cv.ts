@@ -24,7 +24,7 @@ export const hero = {
   subs: ["Van knop tot database.", "Van schets tot live.", "Van bug tot fix."],
   // Korte beschrijving op het beginscherm van de rondleiding.
   intro:
-    "Ik ben Taym, software developer in opleiding uit Dordrecht. Ik bouw het liefst dingen die mensen echt gebruiken: websites, dashboards en mijn eigen Roblox-game. Ik leer door te maken, te testen en het daarna beter te doen. Naast school werk ik al sinds 2022, dus doorpakken ben ik gewend.",
+    "Ik ben Taym, software developer in opleiding uit Dordrecht. Ik bouw het liefst dingen die mensen echt gebruiken: websites, dashboards en mijn eigen Roblox-game. Ik leer door te maken, te testen en het daarna te verbeteren. Naast school werk ik al sinds 2022, dus doorpakken ben ik gewend.",
 }
 
 export const tldr: { label: string; title: string; text: string; accent: Accent }[] = [
