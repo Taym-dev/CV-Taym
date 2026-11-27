@@ -52,7 +52,7 @@ export const tldr: { label: string; title: string; text: string; accent: Accent 
 // CHECK: vul aan met wat je echt gebruikt; dit is een voorzet
 export const stack = {
   "Front-end": ["HTML", "CSS", "JavaScript", "TypeScript", "React", "Tailwind"],
-  "Back-end": ["PHP", "SQL", "REST API's"],
+  "Back-end": ["PHP", "Python", "C#", "SQL", "REST API's"],
   Game: ["Roblox Studio", "Luau"],
   Tools: ["Git", "GitHub", "VS Code", "Figma", "Blender"],
 }
